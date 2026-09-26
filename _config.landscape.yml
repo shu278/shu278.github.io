@@ -1,0 +1,19 @@
+# landscape 主题配置（黑白灰素描风格定制）
+# 该文件优先级高于 themes\landscape\_config.yml
+
+# 顶部导航菜单：Home / Archives
+menu:
+  Home: /
+  Archives: /archives
+
+# 顶部 banner 主视觉：图7（黑白素描少女），放置于 themes\landscape\source\images\banner.jpg
+banner: /images/banner.jpg
+
+# 侧边栏组件：分类 / 标签 / 标签云 / 归档 / 最新文章
+sidebar: right
+widgets:
+- category
+- tag
+- tagcloud
+- archive
+- recent_posts

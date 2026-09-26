@@ -1,0 +1,207 @@
+@import "nib"
+@import "_variables"
+@import "_util/mixin"
+@import "_util/grid"
+
+global-reset()
+
+input, button
+  margin: 0
+  padding: 0
+  &::-moz-focus-inner
+    border: 0
+    padding: 0
+
+html, body, #container
+  height: 100%
+
+body
+  background: color-background
+  font: font-size font-sans
+  -webkit-text-size-adjust: 100%
+
+.outer
+  clearfix()
+  max-width: (column-width + gutter-width) * columns + gutter-width
+  margin: 0 auto
+  padding: 0 gutter-width
+
+.inner
+  column(columns)
+
+.left, .alignleft
+  float: left
+
+.right, .alignright
+  float: right
+
+.clear
+  clear: both
+
+#container
+  position: relative
+
+.mobile-nav-on
+  overflow: hidden
+
+#wrap
+  height: 100%
+  width: 100%
+  position: absolute
+  top: 0
+  left: 0
+  transition: 0.2s ease-out
+  z-index: 1
+  background: rgba(244, 243, 240, 0.75)
+  .mobile-nav-on &
+    left: mobile-nav-width
+
+if sidebar and sidebar isnt bottom
+  #main
+    @media mq-normal
+      column(main-column)
+
+if sidebar is left
+  @media mq-normal
+    #main
+      float: right
+
+@import "_extend"
+@import "_partial/header"
+@import "_partial/article"
+@import "_partial/comment"
+@import "_partial/archive"
+@import "_partial/footer"
+@import "_partial/highlight"
+@import "_partial/mobile"
+
+if sidebar
+  @import "_partial/sidebar"
+
+// ===== 黑白灰素描风格定制 =====
+// 图9 灰阶花雾纹理：multiply 混合让白色隐入底色、素描线条自然透出（非贴图感）
+body::before
+  content: ""
+  position: fixed
+  top: 0
+  left: 0
+  width: 100%
+  height: 100%
+  background: url("/images/bg-mist-1.jpg") center / cover no-repeat fixed
+  opacity: 0.5
+  mix-blend-mode: multiply
+  z-index: 0
+  pointer-events: none
+
+// 图10 灰阶花雾纹理：右下角大面积柔雾装饰（soft-light 柔化融入，不干扰阅读）
+body::after
+  content: ""
+  position: fixed
+  right: -8%
+  bottom: -10%
+  width: 54vw
+  height: 54vw
+  background: url("/images/bg-mist-2.jpg") center / cover no-repeat
+  opacity: 0.5
+  mix-blend-mode: soft-light
+  z-index: 0
+  pointer-events: none
+
+// 图8 樱花素描：侧边栏顶部小面积点缀
+#sidebar
+  position: relative
+  &::before
+    content: ""
+    display: block
+    width: 100%
+    padding-top: 56.25%
+    margin-bottom: block-margin
+    background: url("/images/accent-sketch.jpg") center / cover no-repeat
+    border: 1px solid color-border
+    border-radius: 3px
+    opacity: 0.92
+
+// 文章卡片：柔和阴影，强化线条与留白
+.article-inner
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05)
+
+.article-more-link a
+  &:hover
+    background: color-default
+    text-shadow: 0 1px rgba(0, 0, 0, 0.3)
+
+// ===== 视觉优化（二）：素描线条 × 雾状渐变融合 =====
+// 侧边栏：半透明白卡片 + 细线描边，雾感透出背景纹理
+.widget
+  background: rgba(255, 255, 255, 0.62)
+  border: 1px solid color-border
+  border-radius: 3px
+  padding: 15px
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04)
+
+.widget-title
+  font-weight: 600
+  letter-spacing: 1px
+  padding-bottom: 10px
+  margin-bottom: 14px
+  border-bottom: 1px solid color-border
+  &::after
+    content: ""
+    display: block
+    width: 42px
+    height: 2px
+    margin-top: 10px
+    background: linear-gradient(90deg, #c8c6c0, transparent)
+
+// 文章标题：加深加粗强化轮廓
+.article-title
+  font-weight: 700
+  color: #1f1f1f
+  letter-spacing: 0.5px
+
+// 引用块：手绘感虚线左边框 + 雾灰底
+blockquote
+  border-left: 3px dashed color-border
+  background: rgba(255, 255, 255, 0.5)
+  border-radius: 0 3px 3px 0
+
+// 行内代码：细线框融入
+.article-entry code
+  background: rgba(0, 0, 0, 0.04)
+  border: 1px solid color-border
+  border-radius: 3px
+
+// 正文图片：细线框 + 柔和雾影
+.article-entry img
+  border: 1px solid color-border
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06)
+
+// 标签云：手绘细边 chip
+.tagcloud a
+  border: 1px solid color-border
+  border-radius: 2px
+  padding: 2px 8px
+  margin: 2px
+  &:hover
+    background: color-default
+    color: #fff
+    border-color: color-default
+
+// 归档分隔：虚线强化素描分隔线
+.archive-article-header
+  border-bottom: 1px dashed color-border
+
+// 页脚上方：雾状渐隐过渡，避免硬切
+#footer
+  &:before
+    content: ""
+    display: block
+    height: 60px
+    margin-bottom: -60px
+    background: linear-gradient(to bottom, transparent, rgba(244, 243, 240, 1))
+
+// 子导航图标（RSS/搜索）：统一灰白小圆钮，覆盖任何主题色，避免突兀彩色
+#sub-nav .nav-icon
+  color: rgba(255, 255, 255, 0.92)
+  &:hover, &.active
+    color: #fff
