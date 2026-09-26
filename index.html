@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>不可信输入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="信安在读。默认不信任，偶尔记录">
+<meta property="og:type" content="website">
+<meta property="og:title" content="不可信输入">
+<meta property="og:url" content="https://shu278.github.io/index.html">
+<meta property="og:site_name" content="不可信输入">
+<meta property="og:description" content="信安在读。默认不信任，偶尔记录">
+<meta property="og:locale" content="zh_CN">
+<meta property="article:author" content="Traintedz">
+<meta name="twitter:card" content="summary">
+  
+    <link rel="alternate" href="/atom.xml" title="不可信输入" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">不可信输入</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://shu278.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main">
+  
+    <article id="post-等保2-0：从“系统安全”到“安全生态”" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/" class="article-date">
+  <time class="dt-published" datetime="2026-09-26T15:51:15.000Z" itemprop="datePublished">2026-09-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/">等保2.0：从“系统安全”到“安全生态”</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>大一学期学《信息安全导论》的时候，老师提过“等保”，当时只记住了“三级等保”这个词，具体是什么、为什么重要，脑子里其实一片模糊。这学期开始接触网络安全法和一些合规相关的内容，才慢慢把等保2.0的轮廓拼出来。它不只是一份技术标准，更像是一套关于“如何在现实世界里把安全责任落地”的制度设计。</p>
+<p>等保1.0的时代背景和现在差别很大。1994年的《计算机信息系统安全保护条例》确立等级保护制度的时候，互联网还没有渗透到生活的每个角落，保护对象基本就是单位内部的信息系统。1.0版本的核心逻辑是“分级别、分等级地保护”，思路本身没有问题，但它默认了一个前提：你要保护的东西是一台台相对独立的机器或系统。这个前提在云计算、移动办公和物联网设备铺开之后就不太成立了。一台服务器可能同时承载好几个租户的业务，一个传感器可能连着生产网也连着办公网，传统的边界防护模型很难描述清楚“边界到底在哪里”。等保2.0在2019年发布，很大程度上就是在回应这种“旧框架装不下新现实”的困境。</p>
+<p>保护对象的扩展是我觉得最直观的变化。1.0主要盯着传统信息系统，2.0把云计算平台、物联网系统、工业控制系统、移动互联系统统统纳入保护范围。这意味着一个用公有云部署业务的公司，不能只按通用要求做一遍就完事，还得看云计算扩展要求里关于虚拟化安全、镜像保护、云服务商选择这些条款。同样，一个工厂里的工控系统，如果按传统IT系统的安全要求去套，很多控制点根本对不上——工控环境对实时性和可用性的要求，跟一般业务系统完全不是一回事，所以才需要单独的扩展要求。</p>
+<p>安全框架的调整也值得琢磨。1.0的技术要求分成物理安全、网络安全、主机安全、应用安全和数据安全五块，每一块相对独立。2.0换成了“一个中心、三重防护”：安全管理中心管集中管控，三重防护分别是安全通信网络、安全区域边界和安全计算环境。这个变化不只是换了几个章节名字。原来的“网络安全”被拆成了通信网络和区域边界，这意味着传输过程中的保密性和完整性被单独拎出来强调，边界上也不只是访问控制，入侵防范、恶意代码防范和安全审计都变成了硬性要求。而安全管理中心这个概念，在1.0里是没有的。它要求把系统管理、审计管理、安全管理和集中管控整合到一个统一的平台上，换句话说，安全不能再是各个设备各自为战，得有一个人在楼上看着全局。</p>
+<p>可信验证是2.0里另一个让我觉得有意思的点。1.0基本没有可信计算的要求，2.0从第一级到第四级都加了“可信验证”控制点。最低一级的要求是基于可信根对系统引导程序、系统程序做验证，检测到完整性被破坏要报警。到了更高级别，验证的范围会扩展到应用程序的关键执行环节，还要形成审计记录上报。这背后的思路其实很清楚：与其等恶意代码跑起来再去杀，不如在它还没机会执行的时候就发现系统已经不可信了。</p>
+<p>跟等保1.0相比，2.0还多了一层法律上的“牙齿”。《网络安全法》第二十一条把等级保护制度写成了网络运营者的法定义务，不履行的话，轻则警告责令改正，重则罚款，直接负责的主管人员也可能被追责。我看到的案例里，有公司因为没做等保、系统被攻击导致数据泄露，被公安机关行政处罚的。以前等保可能更多被当成“合规检查要过的那一关”，现在它和法律责任直接挂钩，性质就不一样了。</p>
+<p>站在学生的角度，我其实更关心的是：等保2.0在纸面上写得挺完整，落地的时候到底会卡在哪。看了几篇企业合规的实践文章，发现比较常见的坑是云环境下的责任划分——云服务商和云租户各自要承担哪些安全义务，很多时候双方的理解并不一致，需要通过责任共担模型来明确。另一个问题是“测评过了就放松”，安全运营的持续性投入跟不上，等到复测的时候又冒出一堆不符合项。这些问题说明，等保2.0的标准本身虽然已经比较细致了，但它能不能真正起作用，取决于组织有没有把安全当成日常的事，而不是三年一次的考试。</p>
+<p>接下来我要学的东西还很多，密码学、网络攻防、安全测评这些课都会碰到和等保相关的内容。现在我对它的理解还比较浅显，但至少有一点是清楚的：等保2.0试图回答的不是“用什么设备防什么攻击”这种单点问题，而是一个更麻烦的问题——在一个技术形态不断变化的环境里，怎么让不同规模、不同行业的组织都有一套可以参照的安全底线。这个底线能不能守住，既取决于标准写得好不好，也取决于每一个具体的人有没有认真对待它。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/" data-id="cuidQ1Hrq09K73TGz1gvcf1qG" data-title="等保2.0：从“系统安全”到“安全生态”" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/26/hello-world/" class="article-date">
+  <time class="dt-published" datetime="2026-09-26T09:33:38.285Z" itemprop="datePublished">2026-09-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/26/hello-world/">Hello World</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>Welcome to <a target="_blank" rel="noopener" href="https://hexo.io/">Hexo</a>! This is your very first post. Check <a target="_blank" rel="noopener" href="https://hexo.io/docs/">documentation</a> for more info. If you get any problems when using Hexo, you can find the answer in <a target="_blank" rel="noopener" href="https://hexo.io/docs/troubleshooting.html">troubleshooting</a> or you can ask me on <a target="_blank" rel="noopener" href="https://github.com/hexojs/hexo/issues">GitHub</a>.</p>
+<h2 id="Quick-Start"><a href="#Quick-Start" class="headerlink" title="Quick Start"></a>Quick Start</h2><h3 id="Create-a-new-post"><a href="#Create-a-new-post" class="headerlink" title="Create a new post"></a>Create a new post</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo new <span class="string">&quot;My New Post&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/writing.html">Writing</a></p>
+<h3 id="Run-server"><a href="#Run-server" class="headerlink" title="Run server"></a>Run server</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo server</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/server.html">Server</a></p>
+<h3 id="Generate-static-files"><a href="#Generate-static-files" class="headerlink" title="Generate static files"></a>Generate static files</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo generate</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/generating.html">Generating</a></p>
+<h3 id="Deploy-to-remote-sites"><a href="#Deploy-to-remote-sites" class="headerlink" title="Deploy to remote sites"></a>Deploy to remote sites</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ hexo deploy</span><br></pre></td></tr></table></figure>
+
+<p>More info: <a target="_blank" rel="noopener" href="https://hexo.io/docs/one-command-deployment.html">Deployment</a><br><em>（内容由AI生成，仅供参考）</em></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/09/26/hello-world/" data-id="cuidG1A8q3ncfYRnnyo3KLKVm" data-title="Hello World" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+    <article id="post-理解等保2.0" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/09/26/%E7%90%86%E8%A7%A3%E7%AD%89%E4%BF%9D2.0/" class="article-date">
+  <time class="dt-published" datetime="2026-09-26T09:33:38.285Z" itemprop="datePublished">2026-09-26</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/09/26/%E7%90%86%E8%A7%A3%E7%AD%89%E4%BF%9D2.0/">理解等保2.0</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>如果你从事信息安全相关工作，或者在组织里负责 IT 系统建设，大概率会听到”等保”这个词。它是我国网络安全领域最基础、最核心的制度之一。2019 年 12 月 1 日，以 GB&#x2F;T 22239-2019《网络安全等级保护基本要求》为代表的等保 2.0 系列标准正式实施，标志着等级保护制度进入 2.0 时代。本文用尽量通俗的语言，把等保 2.0 讲清楚。</p>
+<h2 id="一、等保-2-0-是什么"><a href="#一、等保-2-0-是什么" class="headerlink" title="一、等保 2.0 是什么"></a>一、等保 2.0 是什么</h2><p>等保 2.0，全称<strong>网络安全等级保护制度 2.0</strong>，是我国对网络和信息系统按重要性分等级保护、分等级监管的法定制度。它的法律依据来自《网络安全法》第二十一条——国家实行网络安全等级保护制度，网络运营者应当按照网络安全等级保护制度的要求履行安全保护义务。</p>
+<p>等保 2.0 的核心技术标准是 <strong>GB&#x2F;T 22239-2019《网络安全等级保护基本要求》</strong>，由国家市场监督管理总局、国家标准化管理委员会于 2019 年 5 月发布，2019 年 12 月 1 日实施。它取代了 2008 年版的 GB&#x2F;T 22239-2008，成为各行业开展等级保护工作的主要依据。</p>
+<p>一句话概括：<strong>等保 2.0 就是用一套统一的”安全基线”，把不同重要程度的信息系统放到不同的保护等级上，要求运营者达到对应的安全能力。</strong></p>
+<h2 id="二、从等保-1-0-到-2-0：核心变化"><a href="#二、从等保-1-0-到-2-0：核心变化" class="headerlink" title="二、从等保 1.0 到 2.0：核心变化"></a>二、从等保 1.0 到 2.0：核心变化</h2><p>等保 1.0 时代称为”信息安全等级保护”，其框架成型于 2008 年前后。随着云计算、大数据、物联网等技术大规模落地，旧标准已经跟不上现实威胁，等保 2.0 应运而生。核心变化有四点：</p>
+<p><strong>第一，名称与定位升级</strong>：从”信息安全”升级为”网络安全”，强调网络空间整体安全，与《网络安全法》衔接更紧密。</p>
+<p><strong>第二，覆盖范围大幅扩展</strong>：从传统 IT 信息系统，扩展到<strong>云计算、移动互联、物联网、工业控制、大数据</strong>等新技术新应用，并为此出台了扩展要求。如今一家云上企业、一套工控系统、一批智能终端，都可以也必须纳入等保范畴。</p>
+<p><strong>第三，安全理念升级为”一个中心、三重防护”</strong>：</p>
+<ul>
+<li><strong>一个中心</strong>：安全管理中心，负责统一的安全策略、审计、管理与集中管控；</li>
+<li><strong>三重防护</strong>：安全通信网络（网络层）、安全区域边界（边界层）、安全计算环境（主机和应用层）。</li>
+</ul>
+<p>这一架构把防护重心从”堵漏洞”转向”体系化纵深防御”。</p>
+<p><strong>第四，引入可信计算</strong>：等保 2.0 在四级及以上系统明确提出可信根、可信链的要求，从硬件可信根出发验证启动过程和运行环境，构建主动免疫式的安全架构，而不是被动查杀。</p>
+<h2 id="三、安全保护等级划分"><a href="#三、安全保护等级划分" class="headerlink" title="三、安全保护等级划分"></a>三、安全保护等级划分</h2><p>等保 2.0 沿用了五个等级的划分，等级越高，系统重要性越高、被破坏后的危害越大，保护要求也越严格：</p>
+<table>
+<thead>
+<tr>
+<th>等级</th>
+<th>名称</th>
+<th>适用场景</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>第一级</td>
+<td>自主保护</td>
+<td>一般小型系统，受破坏后对公民、法人权益造成损害但不危害国家安全、社会秩序</td>
+</tr>
+<tr>
+<td>第二级</td>
+<td>指导保护</td>
+<td>一般信息系统，受破坏后对公民、法人权益造成严重损害，或对社会秩序造成轻微损害</td>
+</tr>
+<tr>
+<td>第三级</td>
+<td>监督保护</td>
+<td>涉及国家安全、社会秩序和公共利益的重要系统，如政府门户、金融、能源、医疗核心系统</td>
+</tr>
+<tr>
+<td>第四级</td>
+<td>强制保护</td>
+<td>特别重要系统，受破坏后对国家安全、社会秩序和公共利益造成特别严重危害</td>
+</tr>
+<tr>
+<td>第五级</td>
+<td>专控保护</td>
+<td>极其重要、关系国家安全核心利益的特殊系统，由国家专门部门专控管理</td>
+</tr>
+</tbody></table>
+<p>实际操作中，<strong>绝大多数组织接触的是二级和三级</strong>。判定等级通常参考《网络安全等级保护定级指南》（GB&#x2F;T 22240-2020），从受破坏后的客体侵害程度和客体侵害范围两个维度综合确定。</p>
+<h2 id="四、五个规定动作与安全要求框架"><a href="#四、五个规定动作与安全要求框架" class="headerlink" title="四、五个规定动作与安全要求框架"></a>四、五个规定动作与安全要求框架</h2><p>定级之后，等保 2.0 的落地流程被概括为”五个规定动作”：</p>
+<ol>
+<li><strong>定级</strong>：确定系统等级，组织专家评审并报主管部门审核；</li>
+<li><strong>备案</strong>：向当地公安机关办理备案，取得备案证明；</li>
+<li><strong>建设整改</strong>：按对应等级要求建设安全防护能力、整改差距；</li>
+<li><strong>等级测评</strong>：委托有资质的测评机构开展测评，出具测评报告；</li>
+<li><strong>监督检查</strong>：公安机关及主管部门对定级、备案、整改、测评进行监督，三级以上系统通常要求每年至少测评一次。</li>
+</ol>
+<p>安全要求框架上，等保 2.0 把要求分为<strong>技术要求</strong>与<strong>管理要求</strong>两大类，共六个层面：</p>
+<ul>
+<li><strong>安全物理环境</strong>：机房选址、供电、温控、防雷、门禁等物理安全；</li>
+<li><strong>安全通信网络</strong>：网络架构、通信传输、可信验证；</li>
+<li><strong>安全区域边界</strong>：边界防护、访问控制、入侵防范、恶意代码防范、安全审计；</li>
+<li><strong>安全计算环境</strong>：身份鉴别、访问控制、安全审计、入侵防范、数据完整性、数据保密性、个人信息保护；</li>
+<li><strong>安全管理中心</strong>：系统管理、审计管理、安全管理的集中化与权限分离；</li>
+<li><strong>安全管理制度</strong>：安全策略、管理制度、人员管理、运维管理、应急响应等管理规范。</li>
+</ul>
+<p>可以看到，等保 2.0 要求的是”<strong>技术 + 管理</strong>“双轮驱动——光买设备不建制度不行，光有制度没有技术落地也不行。</p>
+<h2 id="五、对个人和企业组织的意义"><a href="#五、对个人和企业组织的意义" class="headerlink" title="五、对个人和企业组织的意义"></a>五、对个人和企业组织的意义</h2><p><strong>对个人而言</strong>：我们每天使用的政务 App、银行系统、医疗平台，很多都运行在三级及以上等保体系之下。等保制度的落地，意味着服务提供方必须达到法定的安全基线，个人敏感信息因此多了一层制度性保障。同时，了解等保也是网络安全意识教育的重要组成——理解”系统为什么有等级””数据为什么要分级”，能帮助普通人在工作中更理性地配合安全管理。</p>
+<p><strong>对企业组织而言</strong>，等保 2.0 的意义更加直接：</p>
+<ul>
+<li><strong>合规义务</strong>：不履行定级备案、测评整改义务，可能违反《网络安全法》《数据安全法》，面临警告、罚款甚至责令停业整顿；</li>
+<li><strong>安全基线</strong>：等保要求是一套经过实践检验的最低安全基线，即使没有监管压力，照此建设也能显著提升系统的抗攻击能力；</li>
+<li><strong>风险管理</strong>：通过定级识别核心资产、通过测评暴露差距、通过整改补齐短板，本身就是一套完整的风险管理闭环；</li>
+<li><strong>业务信任</strong>：通过等级测评并取得测评报告，是向客户、合作伙伴、监管方证明自身安全能力的有效凭证，在招投标和行业准入中日益成为硬性要求。</li>
+</ul>
+<h2 id="结语"><a href="#结语" class="headerlink" title="结语"></a>结语</h2><p>等保 2.0 不是一纸证书，也不是一次性的检查，而是一套”<strong>以等级定要求、以测评促整改、以监管保长效</strong>“的持续运行机制。对安全从业者而言，它是工作语言和职业坐标；对普通用户而言，它是数字生活安全感的重要来源。理解等保 2.0，就是理解”安全不是选择，而是底线”。</p>
+<blockquote>
+<p>本文为安全意识科普，具体定级、测评等操作请以最新法律法规和标准原文为准。<br><em>（内容由AI生成，仅供参考）</em></p>
+</blockquote>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/09/26/%E7%90%86%E8%A7%A3%E7%AD%89%E4%BF%9D2.0/" data-id="cuidfs2BUuu3L6HPPg7RnVjcj" data-title="理解等保2.0" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 20px;">等保2.0</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/">等保2.0：从“系统安全”到“安全生态”</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/26/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/26/%E7%90%86%E8%A7%A3%E7%AD%89%E4%BF%9D2.0/">理解等保2.0</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Traintedz<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
