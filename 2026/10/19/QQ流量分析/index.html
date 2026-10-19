@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>QQ 流量分析 | 不可信输入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="一次网络流量分析的作业，目标很具体：在自己的电脑上，用 Wireshark 看清楚 QQ 到底在干什么——它连哪个端口、平时的心跳长什么样、发一条消息之后网络里多出了什么，以及同一个 WiFi 下发一张图片时，数据究竟走了哪条路。 整个过程分两段：先只观察，靠端口和包长定位；再动手，把局域网里传的那张图从抓包文件里原样导出来。下面按实际做的顺序记一遍。 一、先定位 QQ 用哪几个端口第一步不是开">
+<meta property="og:type" content="article">
+<meta property="og:title" content="QQ 流量分析">
+<meta property="og:url" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/index.html">
+<meta property="og:site_name" content="不可信输入">
+<meta property="og:description" content="一次网络流量分析的作业，目标很具体：在自己的电脑上，用 Wireshark 看清楚 QQ 到底在干什么——它连哪个端口、平时的心跳长什么样、发一条消息之后网络里多出了什么，以及同一个 WiFi 下发一张图片时，数据究竟走了哪条路。 整个过程分两段：先只观察，靠端口和包长定位；再动手，把局域网里传的那张图从抓包文件里原样导出来。下面按实际做的顺序记一遍。 一、先定位 QQ 用哪几个端口第一步不是开">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/01-tasklist-pid.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/02-netstat-established.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/03-baseline-heartbeat.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/04-after-message.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/05-packet-798-detail.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/06-conversations-bytes.png">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/07-tcp-8082-get.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/08-http-200-jpeg.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/09-jpeg-file-data.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/10-export-objects.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/11-timeline.png">
+<meta property="og:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/12-two-paths.png">
+<meta property="article:published_time" content="2026-10-19T18:30:00.000Z">
+<meta property="article:modified_time" content="2026-10-19T10:23:38.851Z">
+<meta property="article:author" content="Traintedz">
+<meta property="article:tag" content="QQ">
+<meta property="article:tag" content="Wireshark">
+<meta property="article:tag" content="抓包">
+<meta property="article:tag" content="流量分析">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/01-tasklist-pid.jpeg">
+  
+    <link rel="alternate" href="/atom.xml" title="不可信输入" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">不可信输入</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://shu278.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-QQ流量分析" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" class="article-date">
+  <time class="dt-published" datetime="2026-10-19T18:30:00.000Z" itemprop="datePublished">2026-10-19</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      QQ 流量分析
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>一次网络流量分析的作业，目标很具体：在自己的电脑上，用 Wireshark 看清楚 QQ 到底在干什么——它连哪个端口、平时的心跳长什么样、发一条消息之后网络里多出了什么，以及同一个 WiFi 下发一张图片时，数据究竟走了哪条路。</p>
+<p>整个过程分两段：先只观察，靠端口和包长定位；再动手，把局域网里传的那张图从抓包文件里原样导出来。下面按实际做的顺序记一遍。</p>
+<h2 id="一、先定位-QQ-用哪几个端口"><a href="#一、先定位-QQ-用哪几个端口" class="headerlink" title="一、先定位 QQ 用哪几个端口"></a>一、先定位 QQ 用哪几个端口</h2><p>第一步不是开 Wireshark，而是先知道该过滤什么。QQ.exe 会同时开一堆进程，但只有主进程在跑业务，所以先按内存占用挑出它：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tasklist /FI <span class="string">&quot;IMAGENAME eq QQ.exe&quot;</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/01-tasklist-pid.jpeg" class="" title="tasklist 查看 QQ.exe 进程，内存占用最大的是 33316">
+
+<p>六七个 QQ.exe 里，33316 占了 159 MB，其余几个只有几 MB 到几十 MB，主进程就是它。</p>
+<p>拿到 PID 再查它连了谁：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">netstat <span class="literal">-ano</span> | findstr <span class="string">&quot;33316&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>这一步只能查到「跟腾讯服务器会话」的端口。想看全，就把所有已建立的连接列出来：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">netstat <span class="literal">-ano</span> | findstr <span class="string">&quot;ESTABLISHED&quot;</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/02-netstat-established.jpeg" class="" title="netstat -ano 过滤 ESTABLISHED，红框那行才是 QQ 主进程连外网的连接">
+
+<p>一屏几十行里，本地回环、443、11111 这些都不相关，只有红框那行是真正的业务连接：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">TCP  [2408:845d:3b51:b736:fc02:...:d076]:58394  [2409:8c54:871:2::24]:14000  ESTABLISHED  33316</span><br><span class="line">     └──────── 你这台电脑 ────────┘              └──── 腾讯服务器 ─┘                    PID</span><br><span class="line">     :58394                                        :14000</span><br><span class="line">     （本机临时端口，每次重开 QQ 都会变）            （服务器端口）</span><br></pre></td></tr></table></figure>
+
+<p>这里有一个后面还会踩到的区别：<strong>58394 是本机临时端口，重开一次 QQ 就换一个；14000 是服务器端口，相对固定</strong>。所以过滤器写 <code>tcp.port == 14000</code> 是可靠的，写本地端口则不保证下次还对得上。</p>
+<h2 id="二、抓心跳：包长是唯一的线索"><a href="#二、抓心跳：包长是唯一的线索" class="headerlink" title="二、抓心跳：包长是唯一的线索"></a>二、抓心跳：包长是唯一的线索</h2><p>Wireshark 里过滤 <code>tcp.port == 14000</code>，先采一段「只挂着、不发任何消息」的基线。</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/03-baseline-heartbeat.jpeg" class="" title="基线抓包，帧长只有 74 &#x2F; 154 &#x2F; 227 三种">
+
+<p>整段记录里出现过的帧长只有 <strong>74 &#x2F; 154 &#x2F; 227</strong> 三种，大约每 10 秒一轮，反复出现「227 → 154 → 74」这个组合。这就是心跳：服务器推一下、客户端回一个、再补一个 ACK。</p>
+<p>然后发一条消息，再抓一次：</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/04-after-message.jpeg" class="" title="发消息之后，多出了 370 &#x2F; 798 &#x2F; 994 三种长度">
+
+<p>多出来的三种长度是 <strong>370 &#x2F; 798 &#x2F; 994</strong>，同样是「服务器 → 我 → 服务器」的三段式。</p>
+<p>帧长不能直接当内容长度用，中间隔着协议头：</p>
+<table>
+<thead>
+<tr>
+<th>帧长</th>
+<th>内容长度</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>370</td>
+<td>296</td>
+<td>服务器推给我的东西</td>
+</tr>
+<tr>
+<td>798</td>
+<td>724</td>
+<td>我发出去的消息</td>
+</tr>
+<tr>
+<td>994</td>
+<td>920</td>
+<td>服务器给我的回执</td>
+</tr>
+</tbody></table>
+<p>换算关系是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">帧长 = 74 + 内容长度</span><br><span class="line">74 = 14（以太网头）+ 40（IPv6 头）+ 20（TCP 头）</span><br></pre></td></tr></table></figure>
+
+<p>也就是说，去掉 74 字节的固定开销，剩下的才是真正的应用层数据。这也解释了为什么基线里没有 370 以上的包——不发消息就没有大块内容。</p>
+<h2 id="三、双击-798-那行，看里面是什么"><a href="#三、双击-798-那行，看里面是什么" class="headerlink" title="三、双击 798 那行，看里面是什么"></a>三、双击 798 那行，看里面是什么</h2><img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/05-packet-798-detail.jpeg" class="" title="双击 798 字节那条包，TCP 载荷的十六进制与 ASCII 双栏对照">
+
+<p>点开之后，协议栈一路展开到 TCP 的 <code>Data (724 bytes)</code>，下面那块就是原始的十六进制 + ASCII 对照。往下翻到<strong>偏移 00b0 附近</strong>，ASCII 那一栏里能直接读出数字。</p>
+<p>结论是：包长能告诉你「有没有发东西、发了多大」，而载荷的这一段是明文的。对于只想知道「发没发消息、消息多长」这件事，加密与否都不影响——长度本身就是一种信息。</p>
+<h2 id="四、发图片：端口全变了"><a href="#四、发图片：端口全变了" class="headerlink" title="四、发图片：端口全变了"></a>四、发图片：端口全变了</h2><p>接下来是发图片。同样的流程重来一遍，先拿 PID，再查端口：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">tasklist /FI <span class="string">&quot;IMAGENAME eq QQ.exe&quot;</span></span><br><span class="line">netstat <span class="literal">-ano</span> | findstr <span class="string">&quot;19696&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>结果是什么都查不到。原因很明确：<strong>局域网直连只在传文件的那十几秒存在</strong>，等你想起来去 netstat，连接已经断了。所以这次不能靠「先找端口再抓包」。</p>
+<p>换一个思路：先抓全量，抓完再按字节数排队找端口。</p>
+<p>Wireshark 里点三下：</p>
+<ol>
+<li>菜单「统计」→「会话」（Statistics → Conversations）</li>
+<li>切到 <strong>TCP</strong> 标签页</li>
+<li>点 <strong>Bytes</strong> 列表头，让它从大到小排</li>
+</ol>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/06-conversations-bytes.png" class="" title="会话统计里按 Bytes 排序，第一行就是传图片的会话">
+
+<p>排在第一行的就是答案：<code>10.43.58.211:55327 ↔ 10.43.58.52:8082</code>，71 万字节，占这次抓包总量的 100%。<strong>端口是 8082</strong>。</p>
+<p>这个办法的好处是不依赖猜端口——<strong>端口号会变，不知道端口，就先按体积排，先找体积最大的</strong>。</p>
+<h2 id="五、看清-8082-上发生了什么"><a href="#五、看清-8082-上发生了什么" class="headerlink" title="五、看清 8082 上发生了什么"></a>五、看清 8082 上发生了什么</h2><p>过滤器填上 <code>tcp.port == 8082</code>，回到包列表。</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/07-tcp-8082-get.jpeg" class="" width="8082" title="端口上，电脑向手机发起三次握手，接着就是一条 HTTP GET">
+
+<p>从第 164 行开始：电脑（10.43.58.211）向 8082 发起三次握手（SYN → SYN,ACK → ACK），握完手第 167 行立刻是一条 <strong>HTTP GET <code>/qqline/...</code></strong>。</p>
+<p>也就是说，是<strong>电脑在向手机「要」一个文件</strong>，而不是手机推过来。手机的回答是：</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/08-http-200-jpeg.jpeg" class="" title="手机返回 200 OK，内容类型 JPEG JFIF image">
+
+<p><code>HTTP/1.1 200 OK (JPEG JFIF image)</code>，明说了返回的是一个 JPEG 图片。</p>
+<p>双击这一行看细节：</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/09-jpeg-file-data.jpeg" class="" title="请求行、完整 URL，以及 File Data: 708970 bytes">
+
+<p>两个关键信息：</p>
+<ul>
+<li><code>[Full request URI: http://10.43.58.52:8082/qqline/...]</code> —— 这是一个<strong>明文 HTTP 请求</strong>，地址是内网 IP，不是 https。</li>
+<li><code>File Data: 708970 bytes</code>，下面从 <code>FF D8 FF E0</code> 开始——这是 JPEG 的标准文件头。</li>
+</ul>
+<p>到这一步结论已经很清楚了：这段通信没有任何加密。</p>
+<h2 id="六、把图片从抓包里捞出来"><a href="#六、把图片从抓包里捞出来" class="headerlink" title="六、把图片从抓包里捞出来"></a>六、把图片从抓包里捞出来</h2><p>过滤器里保留 <code>tcp.port == 8082</code>，敲回车，然后点菜单栏「文件」→「导出对象」→「HTTP…」。</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/10-export-objects.jpeg" class="" title="HTTP 对象列表，353 行 708 KB 就是那张图">
+
+<p>对象列表里一眼能认出它：353 行，708 KB，主机名是 <code>10.43.58.52:8082</code>，文件名就是那串 <code>r2MFvA57L2d3dF+8wK57nY7CUmkP1kaheAV9xEUykcNa25FbGt...</code>。</p>
+<p>选中那一行，点「保存」，<strong>文件名手动填成 <code>图片.jpg</code></strong>，双击就能直接打开看——图片完整恢复了。</p>
+<p>到这里，「能不能还原」这个问题有了答案：能，而且是<strong>原图</strong>，708,970 字节一个不少。</p>
+<h2 id="七、数据到底走了哪条路"><a href="#七、数据到底走了哪条路" class="headerlink" title="七、数据到底走了哪条路"></a>七、数据到底走了哪条路</h2><p>把时间轴对齐之后，整个过程是这样的：</p>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/11-timeline.png" class="" title="从 +10.80s 到 +10.90s 的四个动作，以及各自走的路径">
+
+<table>
+<thead>
+<tr>
+<th>时间</th>
+<th>发生了什么</th>
+<th>走哪</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>+10.80s</td>
+<td>服务器推来 448 字节：「你有一张图」</td>
+<td>公网 8080</td>
+</tr>
+<tr>
+<td>+10.87s</td>
+<td>电脑向手机 8082 发 <code>GET /qqline/...</code></td>
+<td>内网直连</td>
+</tr>
+<tr>
+<td>+10.88s 起</td>
+<td>709 KB 图片开始传，13 秒传完</td>
+<td>内网直连</td>
+</tr>
+<tr>
+<td>+10.90s</td>
+<td>电脑给服务器回一个 852 字节的确认</td>
+<td>公网 8080</td>
+</tr>
+</tbody></table>
+<p>关键点在于：<strong>服务器只负责「通知」和「记录回执」</strong>（就是那 448 和 852 字节），图片本身完全没经过服务器，是手机和电脑之间直接传的。</p>
+<p>方向也值得注意。抓包里是<strong>电脑主动发 GET（当客户端），手机在 8082 上等着被取（当服务器）</strong>。所以链路是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">服务器通知电脑 → 电脑去向手机 GET → 手机被取走文件</span><br></pre></td></tr></table></figure>
+
+<p>而两个方向并不对称：</p>
+<table>
+<thead>
+<tr>
+<th>方向</th>
+<th>是否通</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>手机 → 电脑</td>
+<td>被拦</td>
+<td>要穿过 Windows 防火墙</td>
+</tr>
+<tr>
+<td>电脑 → 手机</td>
+<td>通</td>
+<td>手机是热点网关</td>
+</tr>
+</tbody></table>
+<img src="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/12-two-paths.png" class="" title="同一张图的两种传法：跨公网走加密通道，同局域网走明文 HTTP">
+
+<h2 id="八、结论"><a href="#八、结论" class="headerlink" title="八、结论"></a>八、结论</h2><p>同一份数据，存在两条完全不同的传输路径：跨公网时走腾讯服务器的加密通道，抓包里只能观测到包长与心跳；而在同一局域网内，QQ 客户端会<strong>降级为明文 HTTP 直连</strong>（端口 8082），可以完整还原传输的 JPEG 原图（708,970 字节）。</p>
+<p>这说明「能不能还原」取决于<strong>路径选择</strong>，而不是某一个协议本身的安全强度。加密做得很好的通道，也可能在特定条件下被换成一条完全裸奔的捷径。</p>
+<hr>
+<p>以上抓的都是自己电脑和自己手机的流量。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" data-id="cuidncqV1quN9V2Cs0rxDOmpC" data-title="QQ 流量分析" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/10/19/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">Hello World</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/">QQ 流量分析</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/19/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/">等保2.0：从“系统安全”到“安全生态”</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Traintedz<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
