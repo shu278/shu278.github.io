@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>用 curl 亲手拆开一次 HTTP 请求 | 不可信输入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="《主动扫描》课后实践。 一、目的ch4 讲了 nmap、dirb、whatweb 这几个工具，它们底层干的是同一件事——发一个请求，看对方怎么回。curl 就是我亲手去干这件事：请求方法、请求头、请求体，全都由我自己写。 这次我想验证一个具体的问题：能不能用 curl 手工复现一次 whatweb 那种「网站指纹识别」。 二、环境 攻击机：Kali Linux（VMware 虚拟机，内网 IP 1">
+<meta property="og:type" content="article">
+<meta property="og:title" content="用 curl 亲手拆开一次 HTTP 请求">
+<meta property="og:url" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/index.html">
+<meta property="og:site_name" content="不可信输入">
+<meta property="og:description" content="《主动扫描》课后实践。 一、目的ch4 讲了 nmap、dirb、whatweb 这几个工具，它们底层干的是同一件事——发一个请求，看对方怎么回。curl 就是我亲手去干这件事：请求方法、请求头、请求体，全都由我自己写。 这次我想验证一个具体的问题：能不能用 curl 手工复现一次 whatweb 那种「网站指纹识别」。 二、环境 攻击机：Kali Linux（VMware 虚拟机，内网 IP 1">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/01-curl-version.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/02-curl-source.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/03-curl-headers.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/04-handshake-up.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/04-handshake-down.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/05-download.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/06-get-params.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/07-user-agent.png">
+<meta property="article:published_time" content="2026-11-02T20:50:00.000Z">
+<meta property="article:modified_time" content="2026-11-02T13:01:41.537Z">
+<meta property="article:author" content="Traintedz">
+<meta property="article:tag" content="HTTP">
+<meta property="article:tag" content="Kali">
+<meta property="article:tag" content="curl">
+<meta property="article:tag" content="主动扫描">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/01-curl-version.png">
+  
+    <link rel="alternate" href="/atom.xml" title="不可信输入" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">不可信输入</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://shu278.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-curl-亲手拆开一次HTTP请求" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/" class="article-date">
+  <time class="dt-published" datetime="2026-11-02T20:50:00.000Z" itemprop="datePublished">2026-11-02</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      用 curl 亲手拆开一次 HTTP 请求
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>《主动扫描》课后实践。</p>
+<h2 id="一、目的"><a href="#一、目的" class="headerlink" title="一、目的"></a>一、目的</h2><p>ch4 讲了 nmap、dirb、whatweb 这几个工具，它们底层干的是同一件事——发一个请求，看对方怎么回。curl 就是我亲手去干这件事：请求方法、请求头、请求体，全都由我自己写。</p>
+<p>这次我想验证一个具体的问题：能不能用 curl 手工复现一次 whatweb 那种「网站指纹识别」。</p>
+<h2 id="二、环境"><a href="#二、环境" class="headerlink" title="二、环境"></a>二、环境</h2><ul>
+<li>攻击机：Kali Linux（VMware 虚拟机，内网 IP <code>192.168.64.4</code>）</li>
+<li>目标：<code>www.baidu.com</code> 与 <code>httpbin.org</code> 两个公开站点</li>
+<li>curl 版本：8.20.0</li>
+</ul>
+<p>本次所有请求都只针对公开网站和公开测试接口，没有对任何未授权的系统发起过测试。</p>
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/01-curl-version.png" class="">
+<p><em>图 1  curl –version</em></p>
+<h2 id="三、六个练习"><a href="#三、六个练习" class="headerlink" title="三、六个练习"></a>三、六个练习</h2><h3 id="3-1-抓网页源码：curl-拿到的是什么"><a href="#3-1-抓网页源码：curl-拿到的是什么" class="headerlink" title="3.1  抓网页源码：curl 拿到的是什么"></a>3.1  抓网页源码：curl 拿到的是什么</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -s https://www.baidu.com | <span class="built_in">head</span> -20</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/02-curl-source.png" class="">
+<p><em>图 2  抓取网页源码</em></p>
+<p><strong>结论</strong>：curl 拿到的是原始响应体，浏览器是在这堆字符之上再做解析、执行脚本、渲染成页面的。平时我们看网页，看到的是「渲染后的结果」；curl 让我看到了网页的源码。</p>
+<p>这也解释了一个现象——同一张网页，右键「查看源代码」和浏览器里看到的差别很大，正是因为前者才是服务器真正发过来的东西。</p>
+<h3 id="3-2-只看响应头：这一步和-whatweb-是同一件事"><a href="#3-2-只看响应头：这一步和-whatweb-是同一件事" class="headerlink" title="3.2  只看响应头：这一步和 whatweb 是同一件事"></a>3.2  只看响应头：这一步和 whatweb 是同一件事</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -I https://www.baidu.com</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/03-curl-headers.png" class="">
+<p><em>图 3  只看响应头</em></p>
+<p>这段输出里有两处值得说。</p>
+<p>第一，<code>Server</code> 头只回了 <code>bfe</code>，没有版本号。我查到的常见示例是 <code>bfe/1.0.8.18</code> 这种带版本的写法，而我这里只有 <code>bfe</code>。bfe 是百度自研的接入层，不返回版本号不是它「坏了」，而是有意隐藏——不告诉外面自己跑的是哪一版，别人就没法照着版本号去找对应的已知漏洞。反过来，一个站点 <code>Server</code> 头带完整版本号，说明运维没做过基础加固。<code>Server</code> 头是服务器自己写的，可以随便改，所以真正做评估时不能只靠这一个头，要看一排特征一起对。</p>
+<p>第二，<code>Content-Length: 0</code> 并不代表页面是空的。因为 <code>-I</code> 发的是 HEAD 请求，只要求响应头、不要正文，长度当然是 0。想看真正的正文大小，就得不带 <code>-I</code>。</p>
+<p><strong>结论</strong>：<code>curl -I</code> 手工看 <code>Server</code> 头，和 whatweb 自动识别网站指纹，是同一个思路，只是一手动、一自动。</p>
+<h3 id="3-3-看完整握手：一个参数看穿-HTTP-报文结构"><a href="#3-3-看完整握手：一个参数看穿-HTTP-报文结构" class="headerlink" title="3.3  看完整握手：一个参数看穿 HTTP 报文结构"></a>3.3  看完整握手：一个参数看穿 HTTP 报文结构</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -v https://www.baidu.com 2&gt;&amp;1 | <span class="built_in">head</span> -60</span><br></pre></td></tr></table></figure>
+
+<p>这里踩了个坑，问题出在 Linux 的一个基础机制：程序其实有两个输出口，而管道 <code>|</code> 只接管其中一个（1 号口）。2 号口不经过管道处理，直接送到屏幕上。<code>curl -v</code> 就是这样分流的：网页正文走 1 号口，<code>* Trying...</code>、<code>&gt; GET /</code>、<code>&lt; HTTP/1.1 200</code> 这些调试信息全部走 2 号口。这样一来，你想看的（前 60 行里带 <code>&gt;</code> 和 <code>&lt;</code> 的那部分）被 <code>head</code> 截掉了，你不想看的（几百行 <code>* TLSv1.2</code>）全都刷在屏幕上。必须写 <code>2&gt;&amp;1</code> 把错误流合并进标准输出，<code>head</code> 才拦得住。</p>
+<p>输出里以 <code>*</code> 开头的是 curl 自己的调试信息，<code>&gt;</code> 是我发出去的请求头，<code>&lt;</code> 是对方回的响应头。</p>
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/04-handshake-up.png" class="">
+<p><em>图 4  完整握手过程（上）</em></p>
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/04-handshake-down.jpeg" class="">
+<p><em>图 4  完整握手过程（下）</em></p>
+<p><strong>第一，先撞 IPv6 再回退 IPv4。</strong> 日志里先出现 <code>Immediate connect fail for 2408:... : Network is unreachable</code>，连着两条，然后才 <code>Trying 157.148.69.151:443</code>。原因是我的 Kali 没配 IPv6，curl 按顺序先试 IPv6，直接不通，再回退到 IPv4 才连上。</p>
+<p><strong>第二，TLS 1.3 发起，最后协商成 1.2。</strong> 日志里先是 <code>TLSv1.3 (OUT), TLS handshake, Client hello</code>，也就是我的客户端支持并优先尝试 TLS 1.3；但往下看会发现 <code>TLSv1.2 (IN), TLS handshake, Certificate</code>，最后一行 <code>SSL connection using TLSv1.2 / ECDHE-RSA-AES128-GCM-SHA256</code>。这是 TLS 的正常机制：双向协商，取双方都支持的最高版本。顺带还读到了证书信息。</p>
+<p><strong>第三，一条连接的四元组。</strong> 最后有 <code>Established connection to www.baidu.com (157.148.69.151 port 443) from 192.168.64.4 port 36246</code>。目标 IP 加 443 端口，源 IP 是我这台 Kali 随机分配的高端口。说到底，扫描器要探的就是这个「IP + 端口」，其余都是在这条连接上做的事。</p>
+<p>程序的两个出口：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>名字</th>
+<th>是什么</th>
+<th>默认去向</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td>stdin 标准输入</td>
+<td>你喂给程序的东西</td>
+<td>键盘</td>
+</tr>
+<tr>
+<td>1</td>
+<td>stdout 标准输出</td>
+<td>程序的正常结果</td>
+<td>屏幕</td>
+</tr>
+<tr>
+<td>2</td>
+<td>stderr 标准错误</td>
+<td>报错信息和调试信息</td>
+<td>屏幕</td>
+</tr>
+</tbody></table>
+<h3 id="3-4-下载文件：-o-和-O-的区别"><a href="#3-4-下载文件：-o-和-O-的区别" class="headerlink" title="3.4  下载文件：-o 和 -O 的区别"></a>3.4  下载文件：-o 和 -O 的区别</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">$ curl -o baidu.html https://www.baidu.com</span><br><span class="line">$ curl -O https://nginx.org/download/nginx-1.24.0.tar.gz</span><br><span class="line">$ <span class="built_in">ls</span> -lh baidu.html nginx-1.24.0.tar.gz</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/05-download.png" class="">
+<p><em>图 5  下载并核对文件</em></p>
+<p><code>-o</code>（小写）是自己起名字，<code>-O</code>（大写）是沿用对方 URL 里的文件名。<code>ls -lh</code> 证明文件真的落到了磁盘上。</p>
+<h3 id="3-5-带参数发-GET"><a href="#3-5-带参数发-GET" class="headerlink" title="3.5  带参数发 GET"></a>3.5  带参数发 GET</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl <span class="string">&quot;http://httpbin.org/get?user=test&amp;pwd=123&quot;</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/06-get-params.png" class="">
+<p><em>图 6  带参数 GET 请求</em></p>
+<p>返回的 JSON 里，<code>args</code> 字段把两个参数原样回显了，<code>method</code> 是 GET，<code>url</code> 里也能看到完整参数。</p>
+<p><strong>结论</strong>：GET 的参数是明文拼在 URL 上的，谁都能看见，也能随手改。这正是后面学 SQL 注入的前提——参数完全可控。</p>
+<h3 id="3-6-POST-与伪装-User-Agent"><a href="#3-6-POST-与伪装-User-Agent" class="headerlink" title="3.6  POST 与伪装 User-Agent"></a>3.6  POST 与伪装 User-Agent</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -X POST -d <span class="string">&quot;username=admin&amp;password=123456&quot;</span> http://httpbin.org/post</span><br></pre></td></tr></table></figure>
+
+<p>返回的 JSON 里能看到这两行：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">&quot;Content-Type&quot;</span><span class="punctuation">:</span> <span class="string">&quot;application/x-www-form-urlencoded&quot;</span><span class="punctuation">,</span></span><br><span class="line"><span class="attr">&quot;form&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span> <span class="attr">&quot;password&quot;</span><span class="punctuation">:</span> <span class="string">&quot;123456&quot;</span><span class="punctuation">,</span> <span class="attr">&quot;username&quot;</span><span class="punctuation">:</span> <span class="string">&quot;admin&quot;</span> <span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>-d</code> 会自动把请求方法改成 POST，并补上 <code>Content-Type: application/x-www-form-urlencoded</code>。返回里的 <code>form</code> 字段说明服务端确实收到了这两个字段。</p>
+<p>然后是伪装 UA。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ curl -A <span class="string">&quot;Mozilla/5.0 (Windows NT 10.0; Win64; x64)&quot;</span> -v https://www.baidu.com 2&gt;&amp;1 | grep -i <span class="string">&quot;user-agent&quot;</span></span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/07-user-agent.png" class="">
+<p><em>图 7  伪装 User-Agent 的请求头证据</em></p>
+<p>这条 <code>&gt; User-Agent</code> 才是真的证据：请求头确实从默认的 <code>curl/8.20.0</code> 变成了浏览器的 UA。</p>
+<p>默认的 <code>curl/8.20.0</code> 一眼就能看出「这不是浏览器」。有些站点会按 UA 判断来访者，看到 curl 就直接拒绝，或者返回一个假页面糊弄你。扫描器伪装 UA 就是为了不被这么挡在门外——这也是后面学各种「绕过」的起点。UA 是客户端单方面声明的信息，服务端无法验证。</p>
+<h2 id="四、做完之后的总结"><a href="#四、做完之后的总结" class="headerlink" title="四、做完之后的总结"></a>四、做完之后的总结</h2><table>
+<thead>
+<tr>
+<th>工具</th>
+<th>它其实在干什么</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>whatweb</td>
+<td>反复发请求，比对 Server、X-Powered-By 等响应头，猜对方是什么</td>
+</tr>
+<tr>
+<td>dirb</td>
+<td>拿字典拼 URL，一条条发 GET，看哪个回 200 而不是 404</td>
+</tr>
+<tr>
+<td>curl</td>
+<td>上面两个工具的地基——一个请求，由你自己发</td>
+</tr>
+</tbody></table>
+<p><strong>问：<code>curl -I</code> 和 <code>curl -v</code> 都能看到服务端信息，什么时候用哪个？</strong></p>
+<p><strong>答</strong>：想要一个干净结论时用 <code>-I</code>。我这次只想知道「对方是什么服务器、返回什么状态码」。想知道「这一路到底发生了什么」才用 <code>-v</code>——它把 DNS 解析、IPv6 撞墙、TLS 握手版本、证书链、甚至源端口都打出来。因此使用：<code>-I</code> 用来快速探路，<code>-v</code> 用来查问题和写记录。</p>
+<p><em>附：本文所有命令均在自己可控的环境中对公开站点执行，未针对任何第三方系统做未授权测试。</em></p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/" data-id="cuidYylv0Rldb8Qw2cFZiCXk3" data-title="用 curl 亲手拆开一次 HTTP 请求" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/11/02/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">Hello World</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OSINT/" rel="tag">OSINT</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ZoomEye/" rel="tag">ZoomEye</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" rel="tag">子域名</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">被动扫描</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/HTTP/" style="font-size: 10px;">HTTP</a> <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/Kali/" style="font-size: 10px;">Kali</a> <a href="/tags/OSINT/" style="font-size: 10px;">OSINT</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/ZoomEye/" style="font-size: 10px;">ZoomEye</a> <a href="/tags/curl/" style="font-size: 10px;">curl</a> <a href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">主动扫描</a> <a href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" style="font-size: 10px;">子域名</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a> <a href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">被动扫描</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/11/">十一月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/">用 curl 亲手拆开一次 HTTP 请求</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/02/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/26/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F-%E7%BD%91%E7%BB%9C%E7%A9%BA%E9%97%B4%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E%E4%B8%8E%E5%AD%90%E5%9F%9F%E5%90%8D%E6%94%B6%E9%9B%86/">被动扫描：网络空间搜索引擎与子域名收集</a>
+          </li>
+        
+          <li>
+            <a href="/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/">QQ 流量分析</a>
+          </li>
+        
+          <li>
+            <a href="/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/">等保2.0：从“系统安全”到“安全生态”</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Traintedz<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
