@@ -33,6 +33,9 @@
     <%- css('https://cdn.jsdelivr.net/npm/typeface-source-code-pro@0.0.71/index.min.css') %>
   <% } %>
   <%- css('css/style') %>
+  <% if (page.seh_demo){ %>
+  <%- css('css/seh-demo') %>
+  <% } %>
   <% if (theme.fancybox){ %>
     <%- css('fancybox/jquery.fancybox.min.css') %>
   <% } %>

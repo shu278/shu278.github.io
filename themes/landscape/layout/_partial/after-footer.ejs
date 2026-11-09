@@ -19,6 +19,9 @@
   <%- js('fancybox/jquery.fancybox.min.js') %>
 <% } %>
 
+<% if (page.seh_demo){ %>
+  <%- js('js/seh-demo') %>
+<% } %>
 <%- js('js/script') %>
 <%- partial('gauges-analytics') %>
 
