@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用 | 不可信输入</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="一条 4500 字节的超长 URI，把一个正常运行的文件共享服务打崩，还顺手弹出了计算器。这篇文章记录从端口扫描、版本指纹、漏洞检索到 payload 原理的完整链路。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用">
+<meta property="og:url" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/index.html">
+<meta property="og:site_name" content="不可信输入">
+<meta property="og:description" content="一条 4500 字节的超长 URI，把一个正常运行的文件共享服务打崩，还顺手弹出了计算器。这篇文章记录从端口扫描、版本指纹、漏洞检索到 payload 原理的完整链路。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig1-libs.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig2-stack.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig4-payload-bytes.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig5-nmap.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig6-searchsploit.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig7-exploit-run.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig8-calc.png">
+<meta property="og:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig9-down.png">
+<meta property="article:published_time" content="2026-11-09T20:40:00.000Z">
+<meta property="article:modified_time" content="2026-11-09T13:26:52.270Z">
+<meta property="article:author" content="Traintedz">
+<meta property="article:tag" content="Exploit-DB">
+<meta property="article:tag" content="Nmap">
+<meta property="article:tag" content="SEH">
+<meta property="article:tag" content="searchsploit">
+<meta property="article:tag" content="漏洞扫描">
+<meta property="article:tag" content="缓冲区溢出">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig1-libs.png">
+  
+    <link rel="alternate" href="/atom.xml" title="不可信输入" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/favicon.png">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  
+<link rel="stylesheet" href="/css/seh-demo.css">
+
+  
+  
+    
+<link rel="stylesheet" href="/fancybox/jquery.fancybox.min.css">
+
+  
+  
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fork-awesome@1.2.0/css/fork-awesome.min.css">
+
+<meta name="generator" content="Hexo 8.1.2"></head>
+
+<body>
+  <div id="container">
+    <div id="wrap">
+      <header id="header">
+  <div id="banner"></div>
+  <div id="header-outer" class="outer">
+    <div id="header-title" class="inner">
+      <h1 id="logo-wrap">
+        <a href="/" id="logo">不可信输入</a>
+      </h1>
+      
+    </div>
+    <div id="header-inner" class="inner">
+      <nav id="main-nav">
+        <a id="main-nav-toggle" class="nav-icon"><span class="fa fa-bars"></span></a>
+        
+          <a class="main-nav-link" href="/">Home</a>
+        
+          <a class="main-nav-link" href="/archives">Archives</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        
+        
+          <a class="nav-icon" href="/atom.xml" title="RSS 订阅"><span class="fa fa-rss"></span></a>
+        
+        <a class="nav-icon nav-search-btn" title="搜索"><span class="fa fa-search"></span></a>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" class="search-form-input" placeholder="搜索"><button type="submit" class="search-form-submit">&#xF002;</button><input type="hidden" name="sitesearch" value="https://shu278.github.io"></form>
+      </div>
+    </div>
+  </div>
+</header>
+
+      <div class="outer">
+        <section id="main"><article id="post-EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  <div class="article-meta">
+    <a href="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/" class="article-date">
+  <time class="dt-published" datetime="2026-11-09T20:40:00.000Z" itemprop="datePublished">2026-11-09</time>
+</a>
+    
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a>
+  </div>
+
+  </div>
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="p-name article-title" itemprop="headline name">
+      EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用
+    </h1>
+  
+
+      </header>
+    
+    <div class="e-content article-entry" itemprop="articleBody">
+      
+        <p>一条 4500 字节的超长 URI，把一个正常运行的文件共享服务打崩，还顺手弹出了计算器。这篇文章记录从端口扫描、版本指纹、漏洞检索到 payload 原理的完整链路。</p>
+<span id="more"></span>
+
+<h2 id="一、实验目的"><a href="#一、实验目的" class="headerlink" title="一、实验目的"></a>一、实验目的</h2><ol>
+<li>掌握使用 Nmap 对目标主机进行端口扫描与服务版本探测的方法，能够正确理解 open &#x2F; closed &#x2F; filtered 三种状态的含义。</li>
+<li>掌握使用 searchsploit 检索公开漏洞库（Exploit-DB），把“服务版本号”转化为“可利用漏洞代码”的方法。</li>
+<li>通过复现 Easy File Sharing Web Server 的远程缓冲区溢出漏洞，理解应用层漏洞的成因、利用链条与危害，并验证“防火墙无法防御应用层攻击”这一结论。</li>
+<li>学会用攻击前后的对比数据（端口 open → closed）证明漏洞利用的效果，形成可复现、可验证的实验结论。</li>
+</ol>
+<h2 id="二、实验环境"><a href="#二、实验环境" class="headerlink" title="二、实验环境"></a>二、实验环境</h2><table>
+<thead>
+<tr>
+<th>角色</th>
+<th>操作系统</th>
+<th>IP 地址</th>
+<th>主要软件</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>攻击机</td>
+<td>Kali Linux 2026.2</td>
+<td>192.168.64.4</td>
+<td>Nmap 7.99、searchsploit、Python 2.7.18</td>
+</tr>
+<tr>
+<td>靶机</td>
+<td>Windows 7（64 位）</td>
+<td>192.168.64.100</td>
+<td>Easy File Sharing Web Server 6.9（监听 8000 端口）</td>
+</tr>
+<tr>
+<td>网络</td>
+<td>VirtualBox NAT 网络（KaliLab）</td>
+<td>192.168.64.0&#x2F;24</td>
+<td>网关 192.168.64.1</td>
+</tr>
+</tbody></table>
+<h3 id="环境配置要点及原因"><a href="#环境配置要点及原因" class="headerlink" title="环境配置要点及原因"></a>环境配置要点及原因</h3><table>
+<thead>
+<tr>
+<th>配置项</th>
+<th>做法</th>
+<th>目的</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>两机同网段</td>
+<td>均接入 KaliLab 网络，攻击机 192.168.64.4、靶机 192.168.64.100</td>
+<td>扫描与攻击要求二层可达；NAT 网络与宿主机、校园网隔离，实验流量不外溢</td>
+</tr>
+<tr>
+<td>靶机固定 IP</td>
+<td>手工设为 192.168.64.100</td>
+<td>后续命令都把该地址写死，动态 IP 会导致命令失效</td>
+</tr>
+<tr>
+<td>关闭靶机防火墙</td>
+<td>控制面板 → Windows 防火墙 → 家庭&#x2F;公用两处均选“关闭”</td>
+<td>Windows 防火墙默认丢弃入站 ICMP 与 SYN 探测，不关则 Nmap 结果全为 filtered，实验无法进行</td>
+</tr>
+<tr>
+<td>服务端口改为 8000</td>
+<td>EFS 程序界面 Port 框填 8000 → 点 Restart</td>
+<td>80 端口在 Windows 上常被 IIS 等占用；改用 8000 避免冲突，也让扫描目标明确</td>
+</tr>
+</tbody></table>
+<h2 id="三、实验原理"><a href="#三、实验原理" class="headerlink" title="三、实验原理"></a>三、实验原理</h2><h3 id="3-1-Nmap-版本探测（-sV）的原理"><a href="#3-1-Nmap-版本探测（-sV）的原理" class="headerlink" title="3.1　Nmap 版本探测（-sV）的原理"></a>3.1　Nmap 版本探测（-sV）的原理</h3><p>Nmap 判断“端口是否开放”和“端口上跑着什么”是两件不同的事：</p>
+<ol>
+<li><strong>端口是否开放</strong>：向目标端口发送 TCP SYN 包。收到 SYN&#x2F;ACK 表示端口开放（三次握手第一步成功）；收到 RST 表示端口关闭；没有任何回应表示被防火墙丢弃（filtered）。</li>
+<li><strong>服务是什么、什么版本</strong>：端口开放后，Nmap 按内置的 nmap-service-probes 探针依次发送数据——先建立空连接等待对方主动报出 Banner，再发送 HTTP GET &#x2F; HEAD 等针对性请求，把响应内容与指纹正则库匹配，从而识别软件名与版本号。这一过程称为 Banner Grab（旗标抓取）。</li>
+</ol>
+<p>之所以必须做这一步：漏洞库是按“软件 + 版本”索引的。不知道对方运行的是 Easy File Sharing Web Server 6.9，就无法检索它对应的漏洞利用代码。版本探测是整个攻击链的入口。</p>
+<p>指纹识别的本质可以概括成一句话：问一个只有某个产品才会那样回答的问题。常用手段有三种：</p>
+<table>
+<thead>
+<tr>
+<th>手段</th>
+<th>做法</th>
+<th>典型特征</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>看它自报家门</td>
+<td>读取握手包或响应头中的自我暴露字段</td>
+<td><code>Server: Apache/2.4.49</code>、<code>X-Powered-By: PHP/7.4.3</code>、<code>SSH-2.0-OpenSSH_8.2p1</code></td>
+</tr>
+<tr>
+<td>故意招惹它</td>
+<td>请求不存在的路径、发送畸形数据，观察出错方式</td>
+<td>404 页面长相、报错模板、响应头顺序与措辞</td>
+</tr>
+<tr>
+<td>量化行为特征</td>
+<td>测量协议层可见的参数</td>
+<td>TCP 窗口大小、TTL、IP ID 递增方式，可反推操作系统</td>
+</tr>
+</tbody></table>
+<p>由于 Server 等字段可以被管理员改写，成熟的扫描器不会只看一个字段，而是把数十条探针的匹配结果加权计分。本例中 Nmap 从 8000 端口的响应里匹配出“Easy File Sharing Web Server 6.9”，这一行输出是后续全部工作的起点。</p>
+<h4 id="指纹库、漏洞库与利用库的分工"><a href="#指纹库、漏洞库与利用库的分工" class="headerlink" title="指纹库、漏洞库与利用库的分工"></a>指纹库、漏洞库与利用库的分工</h4><img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig1-libs.png" class="">
+
+<p><em>图 1　指纹库、漏洞库与利用库的分工</em></p>
+<p>这些库都是磁盘上的纯文本规则表。Kali 的 &#x2F;usr&#x2F;share 目录下，nmap-service-probes 是服务指纹，每条 match 规则对应一段正则和一条“产品 + 版本”结论；files_exploits.csv 是利用库的索引，一行一个漏洞。两者都能用编辑器直接打开阅读。</p>
+<h3 id="3-2-searchsploit-与-Exploit-DB-的原理"><a href="#3-2-searchsploit-与-Exploit-DB-的原理" class="headerlink" title="3.2　searchsploit 与 Exploit-DB 的原理"></a>3.2　searchsploit 与 Exploit-DB 的原理</h3><p>searchsploit 是 Exploit-DB（公开漏洞利用代码库）的本地离线镜像，数据库位于 Kali 的 &#x2F;usr&#x2F;share&#x2F;exploitdb&#x2F; 目录。它在本地做关键字与编号检索，不向目标发送任何数据包。检索结果中的路径（如 windows&#x2F;remote&#x2F;39009.py）即现成的 PoC 代码位置。</p>
+<p>更准确地说，searchsploit 做的是一次本地文本检索，与“扫描”无关：它打开 files_exploits.csv，把关键词与漏洞标题字段做子串匹配，命中的行原样打印。表里的一行长这样：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">39009, /usr/share/exploitdb/exploits/windows/remote/39009.py,</span><br><span class="line">&quot;Easy File Sharing Web Server 7.2 - Remote Buffer Overflow (SEH)&quot;, ...</span><br></pre></td></tr></table></figure>
+
+<p>因此检索结果的每一行都不是漏洞描述，而是一张索引卡：编号加存放路径。路径指向的那个 .py 才是完整的 PoC——目标地址、填充长度、跳转地址、shellcode 都已写好，改一个 IP 即可运行。<code>searchsploit -m 39009</code> 把该文件从只读的 &#x2F;usr&#x2F;share 复制到当前目录，便于修改后使用。</p>
+<p>这一步真正的价值是<strong>零暴露</strong>：检索全程不向目标发送任何数据包，靶机日志里不会留下痕迹。整条链路中，只有下面两处动作真正与目标发生通信：</p>
+<table>
+<thead>
+<tr>
+<th>动作</th>
+<th>是否与目标通信</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>nmap -sV</code> 探测</td>
+<td>是，发送探针并等待响应</td>
+</tr>
+<tr>
+<td><code>searchsploit</code> 检索</td>
+<td>否，只读本地文件</td>
+</tr>
+<tr>
+<td>运行 39009.py</td>
+<td>是，发送恶意 HTTP 请求</td>
+</tr>
+</tbody></table>
+<p>也正因为离线，检索速度极快、不受网络限制，在授权测试中也无需担心因查询行为暴露意图。</p>
+<h3 id="3-3-栈缓冲区溢出与-SEH-覆盖的原理"><a href="#3-3-栈缓冲区溢出与-SEH-覆盖的原理" class="headerlink" title="3.3　栈缓冲区溢出与 SEH 覆盖的原理"></a>3.3　栈缓冲区溢出与 SEH 覆盖的原理</h3><p><strong>（1）成因。</strong> EFS 在处理 HTTP 请求时，把请求行中的 URI 路径用类似 <code>strcpy</code>、<code>sprintf</code> 的函数不加长度检查地拷贝到栈上一个固定长度的字符数组里。</p>
+<p><strong>（2）溢出。</strong> 正常访问时 URI 只有几十字节，安全。攻击者构造约 4500 字节的超长 URI，数据就会顺着栈从低地址向高地址漫过去，依次覆盖：局部缓冲区之后的内存 → 保存的 EBP → 函数返回地址 → SEH 异常处理链（nSEH 与 SEH 两个指针）。</p>
+<p><strong>（3）SEH 是什么。</strong> 结构化异常处理（Structured Exception Handling）是 Windows 的异常处理机制，相当于 C 语言的 <code>__try / __except</code>。编译器会为每个 <code>__try</code> 块在栈上登记一条 8 字节的记录：前 4 字节是 next 指针，后 4 字节是 handler 地址。next 指向外层的那条记录，handler 则是“出错时该由谁处理”的函数地址；层层嵌套便串成一条由内到外的链，称为 SEH 异常处理链，链头保存在线程环境块（TEB）中。</p>
+<p>关键有两点：<strong>这条链记录在栈上，而 handler 地址是从栈里读出来的。</strong> 因此溢出不仅能改返回地址，也能改“该由谁处理异常”。</p>
+<p>此外，本目标只能走 SEH 这条路径。EFS 在解析畸形 URI 时会先访问一个越界指针，立即抛出访问违例，函数根本执行不到 <code>ret</code>，覆盖返回地址的手法在此完全无效。异常处理是进程崩溃前的最后一个出口，也是唯一可劫持的出口。</p>
+<p><strong>（4）劫持执行流。</strong> 32 位 Windows 的结构化异常处理（SEH）会在程序出错时按链表查找异常处理器。攻击者做两件事：</p>
+<ul>
+<li>把 SEH 指针覆盖为一段 <code>pop / pop / ret</code> 指令的地址（该地址取自未启用 SafeSEH 的 ImageLoad.dll）。异常发生时，系统会调用这条 handler，其中最后一条 <code>ret</code> 把执行流“弹”回栈上由攻击者控制的数据区；</li>
+<li>在 nSEH 位置放置短跳指令 <code>EB 0A</code>（向前跳 10 字节）：先越过 nSEH 余下的 2 字节与 4 字节 SEH 指针，再跨过紧随其后的填充字节，落到 shellcode 前面的 NOP 滑板上，由滑板把执行流带进 shellcode。</li>
+</ul>
+<p><strong>（5）为什么必须绕 pop pop ret 这一圈。</strong> 既然 shellcode 已经铺在栈上，为什么不直接把 SEH 指针改成 shellcode 的地址？因为栈的地址写不死：程序每次运行时栈的位置都不相同，payload 里写死的栈地址换个环境立即失效。相比之下，DLL 的地址相对稳定，于是借用软件自身 ImageLoad.dll 中一段现成的 pop-pop-ret 指令作中转站——这是整个 payload 里唯一需要预先确定的地址。</p>
+<p>至于 <code>ret</code> 之后落到哪里，由系统自己给出：异常处理框架会把“建立当前帧的位置”作为参数传给 handler，它天然指向栈上那条 SEH 记录，不需要攻击者知道具体数值。落到栈上之后，再用 <code>EB 0A</code> 这类相对跳转跨过 nSEH 残余、SEH 指针与中间的填充字节，落到 shellcode 前的 NOP 滑板，由滑板带进 shellcode——相对跳转只关心“往前几个字节”，不关心“我此刻在哪里”，正好绕开地址不确定的问题。</p>
+<blockquote>
+<p>NOP 滑板：连续的 <code>90</code> 字节。<code>90</code> 在汇编里是 <code>NOP</code>，不做任何事，直接执行下一条指令。执行流只要落到滑板上的任意一点，就会一路“滑”到滑板尽头的 shellcode。</p>
+</blockquote>
+<p><strong>（6）执行 shellcode。</strong> shellcode 是精心构造的机器码，本次功能为调用 <code>WinExec(&quot;calc.exe&quot;)</code>。计算器弹出即证明攻击者已在目标机器上执行任意代码；若换成反弹 shell 类型的 payload，得到的就是一台被完全控制的主机。</p>
+<p><strong>（7）服务崩溃。</strong> 溢出破坏了栈结构，进程无法继续正常服务，EFS 的监听端口随之消失，网站无法访问。</p>
+<h4 id="栈布局与覆盖顺序示意"><a href="#栈布局与覆盖顺序示意" class="headerlink" title="栈布局与覆盖顺序示意"></a>栈布局与覆盖顺序示意</h4><img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig2-stack.png" class="">
+
+<p><em>图 2　栈帧布局与溢出覆盖顺序</em></p>
+<h4 id="pop-pop-ret-的执行过程"><a href="#pop-pop-ret-的执行过程" class="headerlink" title="pop pop ret 的执行过程"></a>pop pop ret 的执行过程</h4><p>系统调用 handler 时，会先在栈顶压入返回地址与异常记录等参数，也就是所谓“两张挡路的纸”。<code>pop</code> 的作用是把栈顶指针下移一格，<code>ret</code> 则是读出当前栈顶的值作为下一跳地址。因此 <code>pop</code> 两次再 <code>ret</code>，效果就是：扔掉系统压入的两条参数，让栈顶露出攻击者铺好的那个地址，从而把执行流带回栈上。下图对比了执行前后的栈状态。</p>
+<div class="seh-demo">
+<div class="seh-top"><span class="seh-t">pop pop ret 执行过程：点着走一遍</span><span class="seh-n">第 <b class="seh-i">1</b> / 7 步</span></div>
+<div class="seh-nav"><button type="button">1 正常时的栈</button><button type="button">2 链头在 TEB</button><button type="button">3 4500 字节漫过去</button><button type="button">4 payload 布局</button><button type="button">5 触发异常</button><button type="button">6 pop pop ret</button><button type="button">7 落进 shellcode</button></div>
+<div class="seh-grid">
+<div class="seh-left"><div class="seh-cap">栈（越往上地址越高）</div><div class="seh-hi">高地址</div><div class="seh-stack"></div><div class="seh-lo">低地址 · 栈顶方向</div><div class="seh-foot"></div></div>
+<div class="seh-right"><p class="seh-desc"></p><div class="seh-actwrap"><button type="button" class="seh-fire">执行 pop pop ret</button></div><div class="seh-cap">这一步在代码里长这样</div><pre class="seh-code"></pre></div>
+</div>
+</div>
+
+<p><em>图 3　pop pop ret 执行过程（可逐步点击，左栏是栈、右栏是这一步对应的代码）</em></p>
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig4-payload-bytes.png" class="">
+
+<p><em>图 4　payload 逐字节布局：短跳落点与 NOP 滑板</em></p>
+<p>为什么防火墙拦不住。整个攻击是一个语法完全合法的 HTTP HEAD 请求，目标端口 8000 是业务端口、必须对外开放，内容看起来与普通网页访问没有区别。防火墙工作在网络层与传输层（看 IP、端口、连接状态），看不到“URI 长度异常”这种应用层语义。防御此类攻击只能依靠应用层手段：打补丁、升级版本、WAF&#x2F;IPS 检测异常长的请求、编译期保护（GS &#x2F; SafeSEH &#x2F; DEP）。</p>
+<h2 id="四、实验步骤与结果"><a href="#四、实验步骤与结果" class="headerlink" title="四、实验步骤与结果"></a>四、实验步骤与结果</h2><h3 id="步骤-1-信息收集：扫描目标端口与服务版本"><a href="#步骤-1-信息收集：扫描目标端口与服务版本" class="headerlink" title="步骤 1　信息收集：扫描目标端口与服务版本"></a>步骤 1　信息收集：扫描目标端口与服务版本</h3><p>在 Kali 终端执行：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nmap -sV -p 8000 192.168.64.100</span><br></pre></td></tr></table></figure>
+
+<p>实测输出：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">PORT     STATE SERVICE VERSION</span><br><span class="line">8000/tcp open  http    Easy File Sharing Web Server httpd 6.9</span><br><span class="line">MAC Address: 08:00:27:C3:C5:17 (Oracle VirtualBox virtual NIC)</span><br><span class="line">Service Info: OS: Windows; CPE: cpe:/o:microsoft:windows</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig5-nmap.png" class="">
+
+<p><em>图 5　Nmap 探测出目标运行 Easy File Sharing Web Server 6.9</em></p>
+<p><code>open</code> 是这里唯一有意义的判断依据：端口开放、服务指纹识别为 Easy File Sharing Web Server 6.9、操作系统为 Windows。至此取得了攻击的“钥匙”——软件名与版本号（6.9），下一步就是拿它去换代码。</p>
+<h3 id="步骤-2-漏洞检索：把版本号换成漏洞利用代码"><a href="#步骤-2-漏洞检索：把版本号换成漏洞利用代码" class="headerlink" title="步骤 2　漏洞检索：把版本号换成漏洞利用代码"></a>步骤 2　漏洞检索：把版本号换成漏洞利用代码</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">searchsploit Easy File Sharing</span><br></pre></td></tr></table></figure>
+
+<p>结果中与本次目标相关的条目（节选）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">Easy File Sharing Web Server 6.9 - USERID Remote Buffer Overflow      | windows/remote/37951.py</span><br><span class="line">Easy File Sharing Web Server 7.2 - HEAD Request Buffer Overflow (SEH) | windows/remote/39009.py</span><br><span class="line">Easy File Sharing Web Server 7.2 - POST Request Buffer Overflow (SEH) | windows/remote/39008.py</span><br><span class="line">Easy File Sharing Web Server 7.2 - Remote Buffer Overflow             | windows/remote/38526.py</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig6-searchsploit.png" class="">
+
+<p><em>图 6　searchsploit 检索到的 EFS 相关漏洞利用代码</em></p>
+<p>确认该软件存在多个远程缓冲区溢出漏洞，其中 39009.py（HEAD 请求溢出、SEH 型）对 6.9 版同样有效。</p>
+<h3 id="步骤-3-实施攻击：运行溢出脚本"><a href="#步骤-3-实施攻击：运行溢出脚本" class="headerlink" title="步骤 3　实施攻击：运行溢出脚本"></a>步骤 3　实施攻击：运行溢出脚本</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> ~</span><br><span class="line"><span class="built_in">cp</span> /usr/share/exploitdb/exploits/windows/remote/39009.py .</span><br><span class="line">python2 39009.py 192.168.64.100 8000</span><br></pre></td></tr></table></figure>
+
+<p>执行输出：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Connecting to: 192.168.64.100:8000</span><br><span class="line">Done...</span><br></pre></td></tr></table></figure>
+
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig7-exploit-run.png" class="">
+
+<p><em>图 7　攻击脚本执行完成，payload 已发往目标</em></p>
+<p>脚本向目标发送一个 URI 长度约 4500 字节的 HTTP HEAD 请求，其中按固定偏移布置了 NOP 滑板、shellcode、短跳（nSEH）与 pop-pop-ret 地址（SEH）——也就是 3.3 节讲的那套布局。</p>
+<h3 id="步骤-4-效果验证：靶机侧取证"><a href="#步骤-4-效果验证：靶机侧取证" class="headerlink" title="步骤 4　效果验证：靶机侧取证"></a>步骤 4　效果验证：靶机侧取证</h3><p>攻击后立即观察靶机，出现两个现象：</p>
+<ol>
+<li>弹出“计算器”窗口——证明 shellcode 被执行，攻击者获得了任意代码执行能力（本次 payload 的功能仅为打开计算器，若换成反弹木马即为完全控制）；</li>
+<li>EFS 程序异常退出、托盘图标消失——说明溢出破坏了进程的栈结构，服务进程崩溃。</li>
+</ol>
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig8-calc.png" class="">
+
+<p><em>图 8　靶机弹出计算器，证明代码执行成功</em></p>
+<h3 id="步骤-5-结果确认：服务可用性与端口状态对比"><a href="#步骤-5-结果确认：服务可用性与端口状态对比" class="headerlink" title="步骤 5　结果确认：服务可用性与端口状态对比"></a>步骤 5　结果确认：服务可用性与端口状态对比</h3><p>攻击前：靶机浏览器访问 <code>http://127.0.0.1:8000</code> 正常显示 EFS 的共享页面。</p>
+<p>攻击后：同一地址显示“Internet Explorer 无法显示该网页”。</p>
+<p>再回到 Kali 复扫：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nmap -sV -p 8000 192.168.64.100</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">PORT     STATE  SERVICE</span><br><span class="line">8000/tcp closed http-alt</span><br></pre></td></tr></table></figure>
+
+<p>结果分析（关键）：<strong>open → closed 是本次实验最硬的证据。</strong> 输出中同时存在 Host is up、延迟 0.00085s，说明网络通畅、主机存活，被精确打掉的是服务进程本身，而非主机或防火墙。</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>含义</th>
+<th>本次对应情况</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>open</td>
+<td>端口开放，有进程在监听</td>
+<td>攻击前，服务正常运行</td>
+</tr>
+<tr>
+<td>closed</td>
+<td>主机可达，但该端口无进程监听</td>
+<td>攻击后，服务进程已被打崩</td>
+</tr>
+<tr>
+<td>filtered</td>
+<td>探测包被防火墙等设备丢弃</td>
+<td>本次未出现，可排除防火墙干扰</td>
+</tr>
+</tbody></table>
+<img src="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/fig9-down.png" class="">
+
+<p><em>图 9　靶机网站无法访问，服务已崩溃</em></p>
+<h2 id="五、实验结果汇总"><a href="#五、实验结果汇总" class="headerlink" title="五、实验结果汇总"></a>五、实验结果汇总</h2><table>
+<thead>
+<tr>
+<th>检查点</th>
+<th>攻击前</th>
+<th>攻击后</th>
+<th>结论</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>8000 端口状态</td>
+<td>open（Easy File Sharing Web Server httpd 6.9）</td>
+<td>closed</td>
+<td>服务进程崩溃</td>
+</tr>
+<tr>
+<td>EFS 网页</td>
+<td>正常显示登录&#x2F;共享页面</td>
+<td>无法显示该网页</td>
+<td>业务中断</td>
+</tr>
+<tr>
+<td>靶机进程</td>
+<td>正常运行</td>
+<td>弹出计算器、服务退出</td>
+<td>任意代码执行 + 拒绝服务</td>
+</tr>
+<tr>
+<td>靶机主机状态</td>
+<td>存活</td>
+<td>仍存活（ping 通）</td>
+<td>攻击针对服务而非主机</td>
+</tr>
+</tbody></table>
+<p>结论：Easy File Sharing Web Server 6.9 存在远程栈缓冲区溢出漏洞（SEH 型）。攻击者无需任何认证，仅需一个 HTTP 请求即可在目标机器上执行任意代码并造成服务瘫痪。该漏洞属于应用层漏洞，防火墙、端口过滤等网络层防护手段对其无效。</p>
+<h2 id="六、安全加固建议"><a href="#六、安全加固建议" class="headerlink" title="六、安全加固建议"></a>六、安全加固建议</h2><ol>
+<li><strong>升级或停用该软件。</strong> 该版本已停止维护且存在多个溢出漏洞，应升级到最新版，或改用其他文件共享方案（如 Nextcloud、加固配置的 SMB 服务）。</li>
+<li><strong>最小暴露面。</strong> 不要把文件共享服务直接暴露在公网；确需外网访问应置于 VPN 之后，并限制来源 IP。</li>
+<li><strong>应用层防护。</strong> 部署 WAF&#x2F;IPS，对超长 URI、异常 HEAD&#x2F;POST 请求进行拦截与告警。</li>
+<li><strong>服务降权运行。</strong> 以低权限账户运行 Web 服务，避免攻击成功后直接获得管理员权限。</li>
+<li><strong>系统与编译保护。</strong> 启用 DEP、ASLR；软件编译时开启 &#x2F;GS 与 SafeSEH，使“覆盖返回地址&#x2F;SEH”的经典手法难以奏效。</li>
+<li><strong>持续巡检。</strong> 定期使用 Nmap 等工具自查资产暴露情况，把“公网上不该出现的服务”尽早下线。</li>
+</ol>
+<h2 id="附：实验命令清单"><a href="#附：实验命令清单" class="headerlink" title="附：实验命令清单"></a>附：实验命令清单</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 1. 端口与服务版本扫描</span></span><br><span class="line">nmap -sV -p 8000 192.168.64.100</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 检索公开漏洞利用代码</span></span><br><span class="line">searchsploit Easy File Sharing</span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 复制并执行漏洞利用脚本（参数：目标 IP、目标端口）</span></span><br><span class="line"><span class="built_in">cp</span> /usr/share/exploitdb/exploits/windows/remote/39009.py ~ &amp;&amp; <span class="built_in">cd</span> ~</span><br><span class="line">python2 39009.py 192.168.64.100 8000</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. 验证服务是否已崩溃</span></span><br><span class="line">nmap -sV -p 8000 192.168.64.100</span><br></pre></td></tr></table></figure>
+
+<p>恢复实验环境：在靶机上重新打开 Easy File Sharing Web Server，点击 Start 或 Restart 重新启动服务，即可再次进行实验（该溢出攻击是一次性的，服务崩溃后需重启进程）。</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="https://shu278.github.io/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/" data-id="cuidLUZPDhjjxKmLOBrzi0xNm" data-title="EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用" class="article-share-link"><span class="fa fa-share">分享</span></a>
+      
+      
+      
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Exploit-DB/" rel="tag">Exploit-DB</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Nmap/" rel="tag">Nmap</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SEH/" rel="tag">SEH</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/searchsploit/" rel="tag">searchsploit</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" rel="tag">漏洞扫描</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" rel="tag">缓冲区溢出</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+  
+    <a href="/2026/11/09/hello-world/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">后一篇</strong>
+      <div class="article-nav-title">Hello World</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+</section>
+        
+          <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8/">网络安全</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E5%AE%89%E5%85%A8%E6%84%8F%E8%AF%86/">网络安全意识</a></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/">网络渗透</a><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/%E7%BD%91%E7%BB%9C%E6%B8%97%E9%80%8F/Pikachu%E5%AE%9E%E9%AA%8C/">Pikachu实验</a></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E9%9A%8F%E7%AC%94/">随笔</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签</h3>
+    <div class="widget">
+      <ul class="tag-list" itemprop="keywords"><li class="tag-list-item"><a class="tag-list-link" href="/tags/Exploit-DB/" rel="tag">Exploit-DB</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/HTTP/" rel="tag">HTTP</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Kali/" rel="tag">Kali</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Metasploit/" rel="tag">Metasploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Nmap/" rel="tag">Nmap</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/OSINT/" rel="tag">OSINT</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Pikachu/" rel="tag">Pikachu</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/QQ/" rel="tag">QQ</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/SEH/" rel="tag">SEH</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Session/" rel="tag">Session</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/Wireshark/" rel="tag">Wireshark</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/ZoomEye/" rel="tag">ZoomEye</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/curl/" rel="tag">curl</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/searchsploit/" rel="tag">searchsploit</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/vsftpd/" rel="tag">vsftpd</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">主动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" rel="tag">子域名</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" rel="tag">客户端验证</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%8A%93%E5%8C%85/" rel="tag">抓包</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" rel="tag">暴力破解</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" rel="tag">流量分析</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%B5%8B%E8%AF%95/" rel="tag">测试</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" rel="tag">漏洞扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%AD%89%E4%BF%9D2-0/" rel="tag">等保2.0</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" rel="tag">缓冲区溢出</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" rel="tag">被动扫描</a></li><li class="tag-list-item"><a class="tag-list-link" href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" rel="tag">验证码</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/Exploit-DB/" style="font-size: 10px;">Exploit-DB</a> <a href="/tags/HTTP/" style="font-size: 10px;">HTTP</a> <a href="/tags/Hexo/" style="font-size: 10px;">Hexo</a> <a href="/tags/Kali/" style="font-size: 10px;">Kali</a> <a href="/tags/Metasploit/" style="font-size: 10px;">Metasploit</a> <a href="/tags/Nmap/" style="font-size: 20px;">Nmap</a> <a href="/tags/OSINT/" style="font-size: 10px;">OSINT</a> <a href="/tags/Pikachu/" style="font-size: 20px;">Pikachu</a> <a href="/tags/QQ/" style="font-size: 10px;">QQ</a> <a href="/tags/SEH/" style="font-size: 10px;">SEH</a> <a href="/tags/Session/" style="font-size: 10px;">Session</a> <a href="/tags/Wireshark/" style="font-size: 10px;">Wireshark</a> <a href="/tags/ZoomEye/" style="font-size: 10px;">ZoomEye</a> <a href="/tags/curl/" style="font-size: 10px;">curl</a> <a href="/tags/searchsploit/" style="font-size: 10px;">searchsploit</a> <a href="/tags/vsftpd/" style="font-size: 10px;">vsftpd</a> <a href="/tags/%E4%B8%BB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">主动扫描</a> <a href="/tags/%E5%AD%90%E5%9F%9F%E5%90%8D/" style="font-size: 10px;">子域名</a> <a href="/tags/%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%AA%8C%E8%AF%81/" style="font-size: 10px;">客户端验证</a> <a href="/tags/%E6%8A%93%E5%8C%85/" style="font-size: 10px;">抓包</a> <a href="/tags/%E6%9A%B4%E5%8A%9B%E7%A0%B4%E8%A7%A3/" style="font-size: 20px;">暴力破解</a> <a href="/tags/%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90/" style="font-size: 10px;">流量分析</a> <a href="/tags/%E6%B5%8B%E8%AF%95/" style="font-size: 10px;">测试</a> <a href="/tags/%E6%BC%8F%E6%B4%9E%E6%89%AB%E6%8F%8F/" style="font-size: 20px;">漏洞扫描</a> <a href="/tags/%E7%AD%89%E4%BF%9D2-0/" style="font-size: 10px;">等保2.0</a> <a href="/tags/%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA/" style="font-size: 10px;">缓冲区溢出</a> <a href="/tags/%E8%A2%AB%E5%8A%A8%E6%89%AB%E6%8F%8F/" style="font-size: 10px;">被动扫描</a> <a href="/tags/%E9%AA%8C%E8%AF%81%E7%A0%81/" style="font-size: 20px;">验证码</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/11/">十一月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/10/">十月 2026</a></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2026/09/">九月 2026</a></li></ul>
+    </div>
+  </div>
+
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="/2026/11/09/EasyFileSharing-%E7%BC%93%E5%86%B2%E5%8C%BA%E6%BA%A2%E5%87%BA%E6%BC%8F%E6%B4%9E%E7%9A%84%E6%89%AB%E6%8F%8F%E5%AE%9A%E4%BD%8D%E4%B8%8E%E5%88%A9%E7%94%A8/">EasyFileSharing-缓冲区溢出漏洞的扫描定位与利用</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/09/hello-world/">Hello World</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-client/">Pikachu 验证码绕过（on client）</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/04/Pikachu-%E9%AA%8C%E8%AF%81%E7%A0%81%E7%BB%95%E8%BF%87-on-server/">Pikachu 验证码绕过（on server）</a>
+          </li>
+        
+          <li>
+            <a href="/2026/11/02/vsftpd-%E7%AC%91%E8%84%B8%E6%BC%8F%E6%B4%9E%E6%A3%80%E6%B5%8BPoC/">vsftpd 2.3.4「笑脸漏洞」检测 PoC</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+</aside>
+        
+      </div>
+      <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      
+      &copy; 2026 Traintedz<br>
+      Powered by <a href="https://hexo.io/" target="_blank">Hexo</a>
+    </div>
+  </div>
+</footer>
+
+    </div>
+    <nav id="mobile-nav">
+  
+    <a href="/" class="mobile-nav-link">Home</a>
+  
+    <a href="/archives" class="mobile-nav-link">Archives</a>
+  
+</nav>
+    
+
+
+<script src="/js/jquery-3.6.4.min.js"></script>
+
+
+
+  
+<script src="/fancybox/jquery.fancybox.min.js"></script>
+
+
+
+
+  
+<script src="/js/seh-demo.js"></script>
+
+
+
+<script src="/js/script.js"></script>
+
+
+
+
+
+  </div>
+</body>
+</html>
